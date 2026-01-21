@@ -13,6 +13,7 @@ export interface NewsItem {
   title: string;
   summary: string;
   fullContent: string;
+  aiSummary?: string | null;
   tags: string[];
   timestamp: string | Date;
   reliability: ReliabilityLevel;
@@ -26,10 +27,10 @@ export interface NewsItem {
 }
 
 export const AVAILABLE_TAGS = [
-  "tempestade solar", "aurora boreal", "terremoto", "tufão", "ciclone", "chuva", 
+  "tempestade solar", "aurora boreal", "terremoto", "tufão", "ciclone", "chuva forte", 
   "enchente", "onda de calor", "deslizamento", "epidemia", "erupção", "vírus", "seca",
   "vulcão", "incêndio", "incêndio florestal", "tsunami", "maremoto", "doenças",
-  "comportamentos animais", "luzes no céu", "apocalipse", "geral"
+  "comportamentos animais", "luzes no céu", "apocalipse"
 ];
 
 const USER_ID = "default-user";

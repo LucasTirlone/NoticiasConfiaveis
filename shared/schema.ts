@@ -42,6 +42,7 @@ export const newsItems = pgTable("news_items", {
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   fullContent: text("full_content").notNull(),
+  aiSummary: text("ai_summary"),
   tags: text("tags").array().notNull(),
   timestamp: timestamp("timestamp").notNull(),
   reliability: text("reliability").notNull().$type<"high" | "medium" | "low" | "investigating">(),
