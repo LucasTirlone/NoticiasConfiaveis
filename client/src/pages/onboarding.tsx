@@ -27,7 +27,7 @@ export default function Onboarding() {
     {
       icon: Bell,
       title: "Filtros Personalizados",
-      description: "Escolha os temas que mais importam para você: desastres naturais, clima, epidemias e muito mais."
+      description: "Escolha os temas de nossa lista de assuntos que mais importam a você."
     }
   ];
 
