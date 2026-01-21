@@ -53,8 +53,8 @@ export default function Sources() {
       setNewName("");
       toast.success("Fonte adicionada com sucesso!");
       // We don't refresh the whole feed anymore to make it fast
-      // But we might want to refresh the source list if the store doesn't auto-update
-      window.location.reload(); 
+      // No reload needed if we just refresh the local state or if it's managed by a query
+      // For now, let's keep it simple and just not redirect
     } catch (error) {
       toast.error("Erro ao adicionar fonte");
     } finally {
@@ -68,7 +68,6 @@ export default function Sources() {
     try {
       await api.deleteSource(id);
       toast.success("Fonte removida");
-      window.location.reload();
     } catch (error) {
       toast.error("Erro ao remover fonte");
     }
