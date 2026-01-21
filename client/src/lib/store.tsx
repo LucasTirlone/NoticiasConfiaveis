@@ -149,23 +149,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshFeed = async () => {
-    setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Buscando notícias..." });
+    setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Iniciando atualização...", newsCount: 0 });
+    
+    let pollingInterval: ReturnType<typeof setInterval> | null = null;
     
     try {
-      await api.refreshFeed();
-      setRefreshProgress({ current: 1, total: 1, status: "loading", message: "Carregando..." });
+      // Start polling for progress updates
+      pollingInterval = setInterval(async () => {
+        try {
+          const progress = await api.getRefreshProgress();
+          if (progress.status === "loading" || progress.status === "complete") {
+            setRefreshProgress(progress);
+          }
+        } catch (e) {
+          // Ignore polling errors
+        }
+      }, 500);
       
+      // Trigger the refresh (this will take time)
+      await api.refreshFeed();
+      
+      // Stop polling
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      
+      // Get final progress
+      const finalProgress = await api.getRefreshProgress();
+      setRefreshProgress(finalProgress);
+      
+      // Reload news
       const newsData = await api.getNews(preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined);
       setFeed(newsData as NewsItem[]);
       setCurrentPage(1);
-      setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Atualizado!" });
     } catch (error) {
       console.error("Failed to refresh:", error);
-      setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro" });
+      setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao atualizar", newsCount: 0 });
     } finally {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
       setTimeout(() => {
-        setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
-      }, 2000);
+        setRefreshProgress({ current: 0, total: 0, status: "idle", message: "", newsCount: 0 });
+      }, 3000);
     }
   };
 

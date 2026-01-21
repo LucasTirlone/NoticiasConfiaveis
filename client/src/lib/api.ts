@@ -7,6 +7,7 @@ export interface RefreshProgress {
   total: number;
   status: "idle" | "loading" | "complete" | "error";
   message: string;
+  newsCount?: number;
 }
 
 export const api = {
