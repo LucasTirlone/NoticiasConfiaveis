@@ -211,25 +211,37 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
   const source = await storage.getSource(sourceId);
   if (!source || !source.rssUrl) return;
 
+  console.log(`\n--- Iniciando busca na fonte: ${source.name} ---`);
+
   try {
     const feed = await parser.parseURL(source.rssUrl);
+    console.log(`Sucesso ao conectar com ${source.name}. Itens encontrados: ${feed.items.length}`);
     
     const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+    let processedCount = 0;
     
-    for (const item of feed.items.slice(0, 10)) {
+    for (const item of feed.items) {
+      if (processedCount >= 10) break; // Limit to 10 items total per source for performance
+
       const title = item.title || "Sem título";
       const originalUrl = item.link || source.url;
       
-      // Check if news is within 72 hours FIRST before any processing
       const pubDate = item.pubDate ? new Date(item.pubDate) : null;
-      if (!pubDate || pubDate < seventyTwoHoursAgo) {
-        console.log(`Notícia antiga (>72h) ignorada: ${title.slice(0, 50)}...`);
+      const isDateValid = pubDate && !isNaN(pubDate.getTime());
+
+      // If date is valid and older than 72h, ignore
+      if (isDateValid && pubDate < seventyTwoHoursAgo) {
+        continue;
+      }
+
+      // If date is invalid or missing, we allow it but only for the first 3 items as fallback
+      if (!isDateValid && processedCount >= 3) {
+        console.log(`Ignorando item sem data válida após limite de 3: ${title.slice(0, 50)}...`);
         continue;
       }
       
       const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
       if (existing) {
-        console.log(`Notícia já existe no banco: ${title.slice(0, 50)}...`);
         continue;
       }
       
@@ -238,13 +250,12 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
       
       const foundThemes = findThemesByText(`${title} ${content}`);
       if (foundThemes.length === 0) {
-        console.log(`Nenhum tema encontrado para: ${title.slice(0, 50)}...`);
         continue;
       }
 
       const verification = await verifySentinela(title, content);
       if (!verification || !verification.aprovado) {
-        console.log(`Sentinela rejeitou: ${title.slice(0, 50)}... - ${verification?.resumo_analise || 'sem motivo'}`);
+        console.log(`Sentinela rejeitou item de ${source.name}: ${title.slice(0, 50)}...`);
         continue;
       }
 
@@ -262,7 +273,7 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
         fullContent: content.slice(0, 1000),
         tags: foundThemes.map(t => t.id),
-        timestamp: item.pubDate ? new Date(item.pubDate) : new Date(),
+        timestamp: isDateValid ? pubDate : new Date(),
         reliability,
         alertLevel,
         sourceIds: [sourceId],
@@ -274,24 +285,21 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
       };
 
       const createdItem = await storage.createNewsItem(newsItem);
-      console.log(`Notícia aprovada e salva: ${title.slice(0, 50)}...`);
+      console.log(`Notícia de ${source.name} aprovada: ${title.slice(0, 50)}...`);
+      processedCount++;
       
       const aiResult = await generateAiSummary(title, content);
       if (aiResult) {
-        // Find matching theme IDs for the themes returned by AI
         const allThemes = CATEGORIES.flatMap(c => c.themes);
         const newTagIds = aiResult.themes
           .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
           .filter(Boolean) as string[];
         
-        // Merge with existing tags if needed, or replace
         const finalTags = Array.from(new Set([...newsItem.tags, ...newTagIds]));
         
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
-        // We'll update the tags in the DB too
         await storage.updateNewsItemTags(createdItem.id, finalTags);
         
-        // Update title with translated version if available
         if (aiResult.translatedTitle) {
           await storage.updateNewsItemTitle(createdItem.id, aiResult.translatedTitle);
         }
@@ -299,8 +307,9 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
     }
 
     await storage.updateSourceLastFetched(sourceId);
+    console.log(`--- Busca finalizada em ${source.name} ---\n`);
   } catch (error) {
-    console.error(`Error fetching RSS from ${source.name}:`, error);
+    console.error(`Erro ao processar fonte ${source.name}:`, error);
   }
 }
 
