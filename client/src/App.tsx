@@ -9,6 +9,8 @@ import NotFound from "@/pages/not-found";
 import { Toaster } from "@/components/ui/toaster";
 import { useEffect } from "react";
 
+import Settings from "@/pages/settings";
+
 // Wrapper to handle redirection logic
 function AppContent() {
   const { preferences } = useStore();
@@ -33,7 +35,7 @@ function AppContent() {
         <Route path="/" component={Feed} />
         <Route path="/news/:id" component={Detail} />
         <Route path="/sources" component={Sources} />
-        <Route path="/settings" component={() => <div className="p-8 text-center text-xl">Configurações (Use o ícone 'A' no topo)</div>} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
