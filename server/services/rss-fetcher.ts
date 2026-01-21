@@ -20,22 +20,22 @@ const TAG_KEYWORDS: Record<string, string[]> = {
   "terremoto": ["earthquake", "terremoto", "sismo", "magnitude", "richter"],
   "tsunami": ["tsunami", "maremoto"],
   "ciclone": ["cyclone", "ciclone", "hurricane", "furacão", "tufão", "typhoon"],
+  "tornado": ["tornado", "twister"],
   "chuva forte": ["heavy rain", "chuva forte", "chuva intensa", "precipitação intensa", "temporal"],
   "enchente": ["flood", "enchente", "inundação", "alagamento", "flooding"],
   "onda de calor": ["heat wave", "onda de calor", "calor extremo", "hot weather"],
-  "incêndio": ["fire", "incêndio", "wildfire", "queimada", "fogo florestal"],
-  "vulcão": ["volcano", "vulcão", "erupção", "volcanic", "lava"],
-  "vírus": ["virus", "vírus", "covid", "gripe", "influenza"],
-  "epidemia": ["epidemic", "epidemia", "outbreak", "surto", "pandemia", "pandemic"],
+  "frio extremo": ["extreme cold", "frio extremo", "onda de frio", "cold wave", "freezing"],
   "deslizamento": ["landslide", "deslizamento", "desmoronamento", "mudslide"],
   "seca": ["drought", "seca", "estiagem"],
   "granizo": ["hail", "granizo", "chuva de pedra"],
-  "tornado": ["tornado", "twister"],
   "nevasca": ["blizzard", "nevasca", "snowstorm", "tempestade de neve"],
+  "vulcão": ["volcano", "vulcão", "erupção", "volcanic", "lava"],
+  "incêndio": ["fire", "incêndio", "wildfire", "queimada", "fogo florestal"],
+  "epidemia": ["epidemic", "epidemia", "outbreak", "surto", "pandemia", "pandemic"],
+  "vírus": ["virus", "vírus", "covid", "gripe", "influenza"],
   "radiação": ["radiation", "radiação", "nuclear", "radioativo"],
   "poluição": ["pollution", "poluição", "smog", "qualidade do ar", "air quality"],
   "maré alta": ["high tide", "maré alta", "ressaca", "storm surge"],
-  "frio extremo": ["extreme cold", "frio extremo", "onda de frio", "cold wave", "freezing"],
 };
 
 function extractTags(text: string): string[] {
@@ -46,10 +46,6 @@ function extractTags(text: string): string[] {
     if (keywords.some(kw => lowerText.includes(kw.toLowerCase()))) {
       foundTags.push(tag);
     }
-  }
-  
-  if (foundTags.length === 0) {
-    return ["chuva forte"];
   }
   
   return foundTags;

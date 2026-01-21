@@ -27,10 +27,10 @@ export interface NewsItem {
 }
 
 export const AVAILABLE_TAGS = [
-  "tempestade solar", "aurora boreal", "terremoto", "tufão", "ciclone", "chuva forte", 
-  "enchente", "onda de calor", "deslizamento", "epidemia", "erupção", "vírus", "seca",
-  "vulcão", "incêndio", "incêndio florestal", "tsunami", "maremoto", "doenças",
-  "comportamentos animais", "luzes no céu", "apocalipse"
+  "tempestade solar", "aurora boreal", "terremoto", "tsunami", "ciclone", "tornado",
+  "chuva forte", "enchente", "onda de calor", "frio extremo", "deslizamento", "seca",
+  "granizo", "nevasca", "vulcão", "incêndio", "epidemia", "vírus", "radiação",
+  "poluição", "maré alta"
 ];
 
 const USER_ID = "default-user";

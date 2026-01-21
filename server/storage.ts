@@ -103,14 +103,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNewsItemsByTags(tags: string[], limit: number = 50): Promise<NewsItem[]> {
-    // Get more items to ensure we have enough after filtering
     const allItems = await db.select()
       .from(newsItems)
       .orderBy(desc(newsItems.timestamp))
       .limit(500);
     
     const filtered = allItems.filter(item => 
-      item.tags.some(tag => tags.includes(tag) || tags.includes("geral"))
+      item.tags.some(tag => tags.includes(tag))
     );
     
     return filtered.slice(0, limit);
