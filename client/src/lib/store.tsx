@@ -86,11 +86,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   const now = new Date();
-  const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+  const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   
   const filteredFeed = feed.filter(item => {
     const itemDate = new Date(item.timestamp);
-    return itemDate >= seventyTwoHoursAgo;
+    return itemDate >= fortyEightHoursAgo;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredFeed.length / ITEMS_PER_PAGE));

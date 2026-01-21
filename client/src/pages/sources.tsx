@@ -1,8 +1,8 @@
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Globe, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Plus, Trash2, Globe, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -14,12 +14,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const SOURCES_PER_PAGE = 10;
+
 export default function Sources() {
   const { sources, refreshFeed } = useStore();
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"official" | "media" | "blog">("media");
   const [isAdding, setIsAdding] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(sources.length / SOURCES_PER_PAGE));
+  
+  const paginatedSources = useMemo(() => {
+    return sources.slice(
+      (currentPage - 1) * SOURCES_PER_PAGE,
+      currentPage * SOURCES_PER_PAGE
+    );
+  }, [sources, currentPage]);
 
   const handleAddSource = async () => {
     if (!newUrl || !newName) {
@@ -40,7 +52,9 @@ export default function Sources() {
       setNewUrl("");
       setNewName("");
       toast.success("Fonte adicionada com sucesso!");
-      await refreshFeed();
+      // We don't refresh the whole feed anymore to make it fast
+      // But we might want to refresh the source list if the store doesn't auto-update
+      window.location.reload(); 
     } catch (error) {
       toast.error("Erro ao adicionar fonte");
     } finally {
@@ -54,7 +68,7 @@ export default function Sources() {
     try {
       await api.deleteSource(id);
       toast.success("Fonte removida");
-      await refreshFeed();
+      window.location.reload();
     } catch (error) {
       toast.error("Erro ao remover fonte");
     }
@@ -107,12 +121,12 @@ export default function Sources() {
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          * Novas fontes passam por uma análise automática de confiabilidade antes de entrarem no feed principal.
+          * Novas fontes são adicionadas instantaneamente. Clique em atualizar no feed para buscar notícias.
         </p>
       </Card>
 
       <div className="grid gap-4">
-        {sources.map(source => (
+        {paginatedSources.map(source => (
           <div key={source.id} className="flex items-center justify-between p-4 bg-card border rounded-xl shadow-sm" data-testid={`card-source-${source.id}`}>
             <div className="flex items-center gap-4">
               <div className={`p-3 rounded-full ${source.trusted ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -142,6 +156,32 @@ export default function Sources() {
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          
+          <span className="text-sm font-medium">
+            Página {currentPage} de {totalPages}
+          </span>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
