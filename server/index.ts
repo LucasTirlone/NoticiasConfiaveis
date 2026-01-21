@@ -60,6 +60,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Seed initial data
+  const { seedInitialData } = await import("./seed-data");
+  await seedInitialData();
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

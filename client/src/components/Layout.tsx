@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Settings, Home, List, Moon, Sun, Type, RefreshCw, ShieldCheck } from "lucide-react";
+import { Settings, Home, List, Moon, Sun, Type, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReactNode } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import generatedIcon from "@assets/generated_images/app_icon_showing_a_shield_with_a_checkmark,_symbolizing_trusted_news.png";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -26,6 +28,16 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const setSize = (size: "normal" | "large" | "extra_large") => {
     updatePreferences({ textSize: size });
+  };
+
+  const handleRefreshFeed = async () => {
+    try {
+      await api.refreshFeed();
+      await refreshFeed();
+      toast.success("Feed atualizado com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao atualizar o feed");
+    }
   };
 
   return (
@@ -46,10 +58,11 @@ export function Layout({ children }: { children: ReactNode }) {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={refreshFeed} 
+            onClick={handleRefreshFeed} 
             disabled={isLoading}
             className="text-muted-foreground hover:text-primary"
             title="Atualizar Notícias"
+            data-testid="button-refresh-feed"
           >
             <RefreshCw className={`w-6 h-6 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
@@ -57,26 +70,26 @@ export function Layout({ children }: { children: ReactNode }) {
           {/* Accessibility Controls */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="border-primary/20" title="Ajustes de Leitura">
+              <Button variant="outline" size="icon" className="border-primary/20" title="Ajustes de Leitura" data-testid="button-text-settings">
                 <Type className="w-6 h-6" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Tamanho do Texto</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setSize("normal")}>
+              <DropdownMenuItem onClick={() => setSize("normal")} data-testid="menu-item-text-normal">
                 Normal
                 {textSize === "normal" && " ✓"}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSize("large")}>
+              <DropdownMenuItem onClick={() => setSize("large")} data-testid="menu-item-text-large">
                 Grande (L)
                 {textSize === "large" && " ✓"}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSize("extra_large")}>
+              <DropdownMenuItem onClick={() => setSize("extra_large")} data-testid="menu-item-text-xlarge">
                 Muito Grande (XL)
                 {textSize === "extra_large" && " ✓"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={toggleContrast} className="flex items-center justify-between">
+              <DropdownMenuItem onClick={toggleContrast} className="flex items-center justify-between" data-testid="menu-item-toggle-contrast">
                 <span>Alto Contraste</span>
                 {isHighContrast ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </DropdownMenuItem>
@@ -95,6 +108,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <Link 
           href="/" 
           className={`flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer ${location === '/' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          data-testid="link-home"
         >
           <Home className="w-7 h-7 mb-1" />
           <span className="text-xs font-semibold">Início</span>
@@ -103,6 +117,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <Link 
           href="/sources" 
           className={`flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer ${location === '/sources' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          data-testid="link-sources"
         >
           <List className="w-7 h-7 mb-1" />
           <span className="text-xs font-semibold">Fontes</span>
@@ -111,6 +126,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <Link 
           href="/settings" 
           className={`flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer ${location === '/settings' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          data-testid="link-settings"
         >
           <Settings className="w-7 h-7 mb-1" />
           <span className="text-xs font-semibold">Ajustes</span>
