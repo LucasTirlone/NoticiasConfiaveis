@@ -16,7 +16,10 @@ export default function Detail() {
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   useEffect(() => {
-    if (item && !aiSummary) {
+    setAiSummary(null);
+    setIsLoadingSummary(false);
+    
+    if (item) {
       setIsLoadingSummary(true);
       fetch("/api/summarize", {
         method: "POST",
@@ -27,12 +30,21 @@ export default function Detail() {
           summary: item.summary
         }),
       })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("Failed to get summary");
+          }
+          return res.json();
+        })
         .then(data => {
-          setAiSummary(data.summary || item.fullContent);
+          if (data.summary && typeof data.summary === "string") {
+            setAiSummary(data.summary);
+          } else {
+            setAiSummary(item.summary || item.fullContent);
+          }
         })
         .catch(() => {
-          setAiSummary(item.fullContent);
+          setAiSummary(item.summary || item.fullContent);
         })
         .finally(() => setIsLoadingSummary(false));
     }
@@ -118,7 +130,7 @@ export default function Detail() {
               </div>
             ) : (
               <p className="text-lg text-foreground/80">
-                {aiSummary || item.fullContent}
+                {aiSummary || item.summary || item.fullContent}
               </p>
             )}
           </div>
