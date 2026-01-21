@@ -2,57 +2,20 @@ import { useStore } from "@/lib/store";
 import { useRoute, Link } from "wouter";
 import { TrustBadge as BadgeComponent } from "@/components/TrustBadge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Share2, ExternalLink, AlertTriangle, CheckCircle2, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Share2, ExternalLink, AlertTriangle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, useEffect } from "react";
 
 export default function Detail() {
   const [, params] = useRoute("/news/:id");
   const { feed } = useStore();
   const item = feed.find(n => n.id === params?.id);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-
-  useEffect(() => {
-    setAiSummary(null);
-    setIsLoadingSummary(false);
-    
-    if (item) {
-      setIsLoadingSummary(true);
-      fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          title: item.title, 
-          content: item.fullContent,
-          summary: item.summary
-        }),
-      })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("Failed to get summary");
-          }
-          return res.json();
-        })
-        .then(data => {
-          if (data.summary && typeof data.summary === "string") {
-            setAiSummary(data.summary);
-          } else {
-            setAiSummary(item.summary || item.fullContent);
-          }
-        })
-        .catch(() => {
-          setAiSummary(item.summary || item.fullContent);
-        })
-        .finally(() => setIsLoadingSummary(false));
-    }
-  }, [item?.id]);
 
   if (!item) return <div className="p-8 text-center text-xl">Notícia não encontrada.</div>;
 
   const isCritical = item.alertLevel === "critical" || item.alertLevel === "warning";
+  const displaySummary = item.aiSummary || item.summary || item.fullContent;
 
   const handleShare = () => {
     if (navigator.share) {
@@ -77,7 +40,6 @@ export default function Detail() {
       </Link>
 
       <article className="space-y-6">
-        {/* Header Section */}
         <div className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
             <BadgeComponent level={item.reliability} />
@@ -90,7 +52,6 @@ export default function Detail() {
             {item.title}
           </h1>
 
-          {/* Critical Alert Box */}
           {isCritical && (
             <div className="bg-destructive/10 border-2 border-destructive/20 rounded-xl p-4 flex items-start gap-4">
               <AlertTriangle className="w-8 h-8 text-destructive shrink-0 mt-1" />
@@ -102,7 +63,6 @@ export default function Detail() {
           )}
         </div>
 
-        {/* Link to Original */}
         <div className="mt-2">
           <a 
             href={item.originalUrl || item.sources[0]?.url || "#"} 
@@ -116,27 +76,18 @@ export default function Detail() {
           </a>
         </div>
 
-        {/* AI Summary */}
         <div className="prose prose-lg dark:prose-invert max-w-none">
           <div className="my-8 border-l-4 border-primary/30 pl-6 py-2 bg-primary/5 rounded-r-xl">
             <h3 className="text-primary font-bold text-lg mb-2 flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               Resumo Simplificado
             </h3>
-            {isLoadingSummary ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Gerando resumo...</span>
-              </div>
-            ) : (
-              <p className="text-lg text-foreground/80">
-                {aiSummary || item.summary || item.fullContent}
-              </p>
-            )}
+            <p className="text-lg text-foreground/80 whitespace-pre-line">
+              {displaySummary}
+            </p>
           </div>
         </div>
 
-        {/* Verification Section */}
         <Card className="bg-secondary/20 border-secondary">
           <CardContent className="p-6 space-y-4">
             <h3 className="font-bold text-xl flex items-center gap-2">
@@ -162,7 +113,6 @@ export default function Detail() {
         </Card>
       </article>
 
-      {/* Floating Action Button for Sharing */}
       <div className="fixed bottom-6 right-6 z-50 md:sticky md:bottom-6 md:float-right">
         <Button 
           size="lg" 

@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { storage } from "../storage";
 import type { InsertNewsItem } from "@shared/schema";
+import { GoogleGenAI } from "@google/genai";
 
 const parser = new Parser();
 
@@ -14,17 +15,27 @@ interface RSSFeedItem {
 }
 
 const TAG_KEYWORDS: Record<string, string[]> = {
-  "tempestade solar": ["solar storm", "tempestade solar", "ejeção de massa coronal", "cme"],
-  "aurora boreal": ["aurora", "northern lights", "aurora boreal"],
-  "terremoto": ["earthquake", "terremoto", "sismo"],
-  "ciclone": ["cyclone", "ciclone", "hurricane", "furacão"],
-  "chuva": ["rain", "chuva", "precipitação"],
-  "enchente": ["flood", "enchente", "inundação"],
-  "onda de calor": ["heat wave", "onda de calor", "calor extremo"],
-  "incêndio": ["fire", "incêndio", "wildfire"],
-  "vulcão": ["volcano", "vulcão", "erupção"],
-  "vírus": ["virus", "vírus", "pandemic", "pandemia"],
-  "epidemia": ["epidemic", "epidemia", "outbreak", "surto"],
+  "tempestade solar": ["solar storm", "tempestade solar", "ejeção de massa coronal", "cme", "geomagnetic"],
+  "aurora boreal": ["aurora", "northern lights", "aurora boreal", "aurora australis"],
+  "terremoto": ["earthquake", "terremoto", "sismo", "magnitude", "richter"],
+  "tsunami": ["tsunami", "maremoto"],
+  "ciclone": ["cyclone", "ciclone", "hurricane", "furacão", "tufão", "typhoon"],
+  "chuva forte": ["heavy rain", "chuva forte", "chuva intensa", "precipitação intensa", "temporal"],
+  "enchente": ["flood", "enchente", "inundação", "alagamento", "flooding"],
+  "onda de calor": ["heat wave", "onda de calor", "calor extremo", "hot weather"],
+  "incêndio": ["fire", "incêndio", "wildfire", "queimada", "fogo florestal"],
+  "vulcão": ["volcano", "vulcão", "erupção", "volcanic", "lava"],
+  "vírus": ["virus", "vírus", "covid", "gripe", "influenza"],
+  "epidemia": ["epidemic", "epidemia", "outbreak", "surto", "pandemia", "pandemic"],
+  "deslizamento": ["landslide", "deslizamento", "desmoronamento", "mudslide"],
+  "seca": ["drought", "seca", "estiagem"],
+  "granizo": ["hail", "granizo", "chuva de pedra"],
+  "tornado": ["tornado", "twister"],
+  "nevasca": ["blizzard", "nevasca", "snowstorm", "tempestade de neve"],
+  "radiação": ["radiation", "radiação", "nuclear", "radioativo"],
+  "poluição": ["pollution", "poluição", "smog", "qualidade do ar", "air quality"],
+  "maré alta": ["high tide", "maré alta", "ressaca", "storm surge"],
+  "frio extremo": ["extreme cold", "frio extremo", "onda de frio", "cold wave", "freezing"],
 };
 
 function extractTags(text: string): string[] {
@@ -37,7 +48,11 @@ function extractTags(text: string): string[] {
     }
   }
   
-  return foundTags.length > 0 ? foundTags : ["geral"];
+  if (foundTags.length === 0) {
+    return ["chuva forte"];
+  }
+  
+  return foundTags;
 }
 
 function calculateReliability(sourceType: "official" | "media" | "blog", sourceCount: number): {
@@ -70,12 +85,54 @@ function calculateReliability(sourceType: "official" | "media" | "blog", sourceC
 }
 
 function determineAlertLevel(tags: string[]): "critical" | "warning" | "info" {
-  const criticalTags = ["terremoto", "tsunami", "vulcão", "epidemia", "ciclone"];
-  const warningTags = ["onda de calor", "enchente", "incêndio", "tempestade solar"];
+  const criticalTags = ["terremoto", "tsunami", "vulcão", "epidemia", "ciclone", "tornado"];
+  const warningTags = ["onda de calor", "enchente", "incêndio", "tempestade solar", "deslizamento", "nevasca", "frio extremo"];
   
   if (tags.some(t => criticalTags.includes(t))) return "critical";
   if (tags.some(t => warningTags.includes(t))) return "warning";
   return "info";
+}
+
+async function generateAiSummary(title: string, content: string): Promise<string | null> {
+  try {
+    if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
+      console.log("AI integration not configured, skipping summary generation");
+      return null;
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+      httpOptions: {
+        apiVersion: "",
+        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+      },
+    });
+
+    const prompt = `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
+
+Título da notícia: ${title}
+
+Conteúdo original: ${content}
+
+Por favor, crie um resumo muito claro e simples desta notícia em português brasileiro. O resumo deve:
+- Ser fácil de entender por qualquer pessoa
+- Explicar o que aconteceu de forma objetiva
+- Ter no máximo 3 parágrafos curtos
+- Evitar jargões técnicos
+- Responder: O que? Onde? Quando? Por quê é importante?
+
+Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    return response.text || null;
+  } catch (error) {
+    console.error("Error generating AI summary:", error);
+    return null;
+  }
 }
 
 export async function fetchRSSFromSource(sourceId: string): Promise<void> {
@@ -85,14 +142,13 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
   try {
     const feed = await parser.parseURL(source.rssUrl);
     
-    for (const item of feed.items.slice(0, 5)) { // Limit to 5 most recent
+    for (const item of feed.items.slice(0, 5)) {
       const title = item.title || "Sem título";
       const originalUrl = item.link || source.url;
       
-      // Check for duplicates before inserting
       const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
       if (existing) {
-        continue; // Skip duplicate
+        continue;
       }
       
       const content = item.contentSnippet || item.content || item.summary || "";
@@ -114,7 +170,12 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         originalUrl,
       };
 
-      await storage.createNewsItem(newsItem);
+      const createdItem = await storage.createNewsItem(newsItem);
+      
+      const aiSummary = await generateAiSummary(title, content);
+      if (aiSummary) {
+        await storage.updateNewsItemAiSummary(createdItem.id, aiSummary);
+      }
     }
 
     await storage.updateSourceLastFetched(sourceId);

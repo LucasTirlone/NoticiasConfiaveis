@@ -35,6 +35,7 @@ export interface IStorage {
   getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
   findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined>;
   countNewsItems(): Promise<number>;
+  updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void>;
   
   // User Preferences
   getUserPreferences(id: string): Promise<UserPreferences | undefined>;
@@ -125,6 +126,12 @@ export class DatabaseStorage implements IStorage {
   async countNewsItems(): Promise<number> {
     const items = await db.select().from(newsItems);
     return items.length;
+  }
+
+  async updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void> {
+    await db.update(newsItems)
+      .set({ aiSummary })
+      .where(eq(newsItems.id, id));
   }
 
   // User Preferences
