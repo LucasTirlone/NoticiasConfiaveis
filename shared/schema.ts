@@ -49,6 +49,8 @@ export const newsItems = pgTable("news_items", {
   alertLevel: text("alert_level").notNull().$type<"critical" | "warning" | "info">(),
   sourceIds: text("source_ids").array().notNull(),
   verificationNotes: text("verification_notes").notNull(),
+  impactAnalysis: text("impact_analysis"),
+  riskLevel: text("risk_level"),
   whyReliable: text("why_reliable").notNull(),
   originalUrl: text("original_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

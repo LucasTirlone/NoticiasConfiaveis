@@ -5,94 +5,102 @@ import { GoogleGenAI } from "@google/genai";
 
 const parser = new Parser();
 
-interface RSSFeedItem {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  content?: string;
-  contentSnippet?: string;
-  guid?: string;
-}
+const AVAILABLE_TAGS = [
+  "tempestade solar", "aurora boreal", "terremoto", "tsunami", "ciclone", "tornado",
+  "chuva forte", "enchente", "onda de calor", "frio extremo", "deslizamento", "seca",
+  "granizo", "nevasca", "vulcão", "incêndio", "epidemia", "vírus", "radiação",
+  "poluição", "maré alta"
+];
 
-const TAG_KEYWORDS: Record<string, string[]> = {
-  "tempestade solar": ["solar storm", "tempestade solar", "ejeção de massa coronal", "cme", "geomagnetic"],
-  "aurora boreal": ["aurora", "northern lights", "aurora boreal", "aurora australis"],
-  "terremoto": ["earthquake", "terremoto", "sismo", "magnitude", "richter"],
-  "tsunami": ["tsunami", "maremoto"],
-  "ciclone": ["cyclone", "ciclone", "hurricane", "furacão", "tufão", "typhoon"],
-  "tornado": ["tornado", "twister"],
-  "chuva forte": ["heavy rain", "chuva forte", "chuva intensa", "precipitação intensa", "temporal"],
-  "enchente": ["flood", "enchente", "inundação", "alagamento", "flooding"],
-  "onda de calor": ["heat wave", "onda de calor", "calor extremo", "hot weather"],
-  "frio extremo": ["extreme cold", "frio extremo", "onda de frio", "cold wave", "freezing"],
-  "deslizamento": ["landslide", "deslizamento", "desmoronamento", "mudslide"],
-  "seca": ["drought", "seca", "estiagem"],
-  "granizo": ["hail", "granizo", "chuva de pedra"],
-  "nevasca": ["blizzard", "nevasca", "snowstorm", "tempestade de neve"],
-  "vulcão": ["volcano", "vulcão", "erupção", "volcanic", "lava"],
-  "incêndio": ["fire", "incêndio", "wildfire", "queimada", "fogo florestal"],
-  "epidemia": ["epidemic", "epidemia", "outbreak", "surto", "pandemia", "pandemic"],
-  "vírus": ["virus", "vírus", "covid", "gripe", "influenza"],
-  "radiação": ["radiation", "radiação", "nuclear", "radioativo"],
-  "poluição": ["pollution", "poluição", "smog", "qualidade do ar", "air quality"],
-  "maré alta": ["high tide", "maré alta", "ressaca", "storm surge"],
-};
-
-function extractTags(text: string): string[] {
-  const foundTags: string[] = [];
-  const lowerText = text.toLowerCase();
-  
-  for (const [tag, keywords] of Object.entries(TAG_KEYWORDS)) {
-    if (keywords.some(kw => lowerText.includes(kw.toLowerCase()))) {
-      foundTags.push(tag);
+async function verifyImpactAndRelevance(title: string, content: string): Promise<{
+  aprovado: boolean;
+  analise_de_impacto?: string;
+  tag_sugerida?: string;
+  nivel_de_risco?: string;
+} | null> {
+  try {
+    if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
+      return { aprovado: true }; // Fallback se a IA não estiver configurada
     }
-  }
-  
-  return foundTags;
-}
 
-function calculateReliability(sourceType: "official" | "media" | "blog", sourceCount: number): {
-  reliability: "high" | "medium" | "low" | "investigating";
-  whyReliable: string;
-} {
-  if (sourceType === "official" && sourceCount >= 2) {
-    return {
-      reliability: "high",
-      whyReliable: `Confirmado por ${sourceCount} fontes oficiais.`
-    };
-  } else if (sourceType === "official" || (sourceType === "media" && sourceCount >= 2)) {
-    return {
-      reliability: "high",
-      whyReliable: sourceType === "official" 
-        ? "Confirmado por fonte oficial governamental."
-        : `Reportado por ${sourceCount} veículos de imprensa reconhecidos.`
-    };
-  } else if (sourceType === "media") {
-    return {
-      reliability: "medium",
-      whyReliable: "Reportado por veículo de imprensa, aguardando confirmação oficial."
-    };
-  } else {
-    return {
-      reliability: "investigating",
-      whyReliable: "Fonte independente, requer verificação adicional."
-    };
-  }
-}
+    const ai = new GoogleGenAI({
+      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+      httpOptions: {
+        apiVersion: "",
+        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+      },
+    });
 
-function determineAlertLevel(tags: string[]): "critical" | "warning" | "info" {
-  const criticalTags = ["terremoto", "tsunami", "vulcão", "epidemia", "ciclone", "tornado"];
-  const warningTags = ["onda de calor", "enchente", "incêndio", "tempestade solar", "deslizamento", "nevasca", "frio extremo"];
-  
-  if (tags.some(t => criticalTags.includes(t))) return "critical";
-  if (tags.some(t => warningTags.includes(t))) return "warning";
-  return "info";
+    const prompt = `# ROLE
+Você é um Especialista Sênior de Riscos Globais e Desastres Naturais para um sistema de alerta governamental. Sua função é filtrar notícias de feeds RSS e determinar se elas possuem RELEVÂNCIA PÚBLICA e ALTO IMPACTO.
+
+# OBJECTIVE
+Analise a notícia fornecida e decida se ela deve ser publicada no app "Verifica". Sua filtragem deve ser impiedosa: 90% das notícias do dia-a-dia devem ser descartadas. Apenas eventos com potencial catastrófico, impacto regional/nacional ou risco iminente de desastre devem passar.
+
+# CRITÉRIOS DE APROVAÇÃO (IMPACTO E ESCALA)
+Para ser aprovada, a notícia deve atender a pelo menos UM dos seguintes critérios de MAGNITUDE:
+
+1. **Escala Geográfica:** Afeta uma região inteira, cidade, estado ou país. (Ex: "Incêndio na Califórnia" = SIM. "Incêndio no apartamento 302" = NÃO).
+2. **Infraestrutura Crítica:** Causa colapso de serviços (falta de luz em massa, fechamento de aeroportos, destruição de represas).
+3. **Risco à Vida em Massa:** Envolve evacuações, múltiplas vítimas ou alertas oficiais de perigo de vida.
+4. **Anomalia Científica Relevante:** No caso de vulcões, tempestades solares ou vírus, não basta a ocorrência; deve haver um ALERTA DE RISCO aumentado. (Ex: "Vulcão fumegando normalmente" = NÃO. "Vulcão eleva nível de alerta para erupção iminente" = SIM).
+
+# EXEMPLOS DE TREINAMENTO (FEW-SHOT LEARNING)
+
+Input: "Bombeiros controlam incêndio em loja no centro de Osasco."
+Reasoning: O evento é local, restrito a um imóvel, sem risco sistêmico ou evacuação em massa.
+Veredito: REJEITAR
+
+Input: "Tempestade na Grande SP deixa 500 mil sem luz e causa alagamentos nas marginais."
+Reasoning: Afeta infraestrutura crítica (energia/trânsito), atinge milhões de pessoas e tem escala regional.
+Veredito: APROVAR
+
+Input: "Vulcão Etna solta anéis de fumaça, espetáculo visual atrai turistas."
+Reasoning: Atividade vulcânica estética, sem elevação do nível de risco ou perigo à população.
+Veredito: REJEITAR
+
+Input: "Explosão em porto de Beirute gera onda de choque e destrói janelas a 10km."
+Reasoning: Evento catastrófico, danos estruturais massivos, impacto nacional.
+Veredito: APROVAR
+
+Input: "OMS monitora nova variante de gripe com alta taxa de transmissão na Ásia."
+Reasoning: Potencial pandêmico, risco biológico transnacional.
+Veredito: APROVAR
+
+# LISTA DE TAGS PERMITIDAS
+Use apenas uma destas tags em "tag_sugerida": ${AVAILABLE_TAGS.join(", ")}
+
+# FORMATO DE SAÍDA (JSON)
+Responda APENAS um objeto JSON com:
+- "aprovado": (true/false)
+- "analise_de_impacto": (Uma frase curta justificando a escala)
+- "tag_sugerida": (Escolha uma das tags da lista fornecida)
+- "nivel_de_risco": (Baixo/Médio/Alto/Crítico)
+
+Notícia para análise:
+Título: ${title}
+Conteúdo: ${content}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const text = response.text || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error verifying impact:", error);
+    return null;
+  }
 }
 
 async function generateAiSummary(title: string, content: string): Promise<string | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-      console.log("AI integration not configured, skipping summary generation");
       return null;
     }
 
@@ -131,6 +139,28 @@ Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
   }
 }
 
+function calculateReliability(sourceType: "official" | "media" | "blog", sourceCount: number): {
+  reliability: "high" | "medium" | "low" | "investigating";
+  whyReliable: string;
+} {
+  if (sourceType === "official") {
+    return {
+      reliability: "high",
+      whyReliable: "Confirmado por fonte oficial governamental."
+    };
+  } else if (sourceType === "media") {
+    return {
+      reliability: "medium",
+      whyReliable: "Reportado por veículo de imprensa, aguardando confirmação oficial."
+    };
+  } else {
+    return {
+      reliability: "investigating",
+      whyReliable: "Fonte independente, requer verificação adicional."
+    };
+  }
+}
+
 export async function fetchRSSFromSource(sourceId: string): Promise<void> {
   const source = await storage.getSource(sourceId);
   if (!source || !source.rssUrl) return;
@@ -143,31 +173,46 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
       const originalUrl = item.link || source.url;
       
       const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
-      if (existing) {
-        continue;
-      }
+      if (existing) continue;
       
       const content = item.contentSnippet || item.content || item.summary || "";
-      const tags = extractTags(`${title} ${content}`);
+      
+      // 1. Filtragem de Impacto (Novo passo solicitado)
+      const verification = await verifyImpactAndRelevance(title, content);
+      if (!verification || !verification.aprovado) {
+        console.log(`Notícia rejeitada por falta de impacto/relevância: ${title}`);
+        continue;
+      }
+
       const { reliability, whyReliable } = calculateReliability(source.type, 1);
-      const alertLevel = determineAlertLevel(tags);
+      
+      // Mapear nível de risco para alert level do sistema
+      let alertLevel: "critical" | "warning" | "info" = "info";
+      if (verification.nivel_de_risco === "Crítico" || verification.nivel_de_risco === "Alto") {
+        alertLevel = "critical";
+      } else if (verification.nivel_de_risco === "Médio") {
+        alertLevel = "warning";
+      }
 
       const newsItem: InsertNewsItem = {
         title,
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
         fullContent: content.slice(0, 1000),
-        tags,
+        tags: [verification.tag_sugerida || "chuva forte"],
         timestamp: item.pubDate ? new Date(item.pubDate) : new Date(),
         reliability,
         alertLevel,
         sourceIds: [sourceId],
         verificationNotes: `Fonte: ${source.name}`,
+        impactAnalysis: verification.analise_de_impacto,
+        riskLevel: verification.nivel_de_risco,
         whyReliable,
         originalUrl,
       };
 
       const createdItem = await storage.createNewsItem(newsItem);
       
+      // 2. Resumo com IA
       const aiSummary = await generateAiSummary(title, content);
       if (aiSummary) {
         await storage.updateNewsItemAiSummary(createdItem.id, aiSummary);

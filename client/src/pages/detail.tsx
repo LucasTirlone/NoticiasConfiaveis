@@ -77,6 +77,30 @@ export default function Detail() {
         </div>
 
         <div className="prose prose-lg dark:prose-invert max-w-none">
+          {item.impactAnalysis && (
+            <div className="my-6 p-5 bg-secondary/10 border border-secondary/20 rounded-2xl">
+              <h3 className="text-secondary-foreground font-bold text-lg mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-secondary" />
+                Análise de Impacto
+              </h3>
+              <p className="text-lg text-foreground/80 italic">
+                "{item.impactAnalysis}"
+              </p>
+              {item.riskLevel && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nível de Risco:</span>
+                  <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+                    item.riskLevel === 'Crítico' ? 'bg-destructive text-destructive-foreground' :
+                    item.riskLevel === 'Alto' ? 'bg-orange-500 text-white' :
+                    item.riskLevel === 'Médio' ? 'bg-yellow-500 text-black' :
+                    'bg-blue-500 text-white'
+                  }`}>
+                    {item.riskLevel}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
           <div className="my-8 border-l-4 border-primary/30 pl-6 py-2 bg-primary/5 rounded-r-xl">
             <h3 className="text-primary font-bold text-lg mb-2 flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
