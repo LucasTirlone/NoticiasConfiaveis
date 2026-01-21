@@ -19,7 +19,7 @@ function AppContent() {
   useEffect(() => {
     // If onboarding is not complete, redirect to onboarding
     // Unless we are already there
-    if (!preferences.onboardingCompleted && location !== "/onboarding") {
+    if (preferences.onboardingCompleted === false && location !== "/onboarding") {
       setLocation("/onboarding");
     }
   }, [preferences.onboardingCompleted, location, setLocation]);

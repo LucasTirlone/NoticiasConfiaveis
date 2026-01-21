@@ -70,7 +70,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     sensitivity: "all",
     textSize: "normal",
     highContrast: false,
-    onboardingCompleted: false,
+    onboardingCompleted: true, // Default to true to prevent initial flicker/redirect
     updatedAt: new Date(),
   });
 
@@ -105,6 +105,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const prefs = await api.getPreferences(USER_ID);
         if (prefs) {
           setPreferences(prefs);
+        } else {
+          // If no prefs found, it's a new user, so onboarding is needed
+          setPreferences(prev => ({ ...prev, onboardingCompleted: false }));
         }
       } catch (error) {
         console.error("Failed to load preferences:", error);
