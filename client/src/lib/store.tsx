@@ -1,13 +1,30 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
-import type { NewsItem as DBNewsItem, Source as DBSource, UserPreferences as DBUserPreferences } from "@shared/schema";
+import type { Source as DBSource, UserPreferences as DBUserPreferences } from "@shared/schema";
 import { api } from "./api";
 
 export type ReliabilityLevel = "high" | "medium" | "low" | "investigating";
 export type AlertLevel = "critical" | "warning" | "info";
 
 export interface Source extends DBSource {}
-export interface NewsItem extends DBNewsItem {}
 export interface UserPreferences extends DBUserPreferences {}
+
+// Extended NewsItem that includes populated sources from the API
+export interface NewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  fullContent: string;
+  tags: string[];
+  timestamp: string | Date;
+  reliability: ReliabilityLevel;
+  alertLevel: AlertLevel;
+  sourceIds: string[];
+  sources: Source[]; // Populated by backend
+  verificationNotes: string;
+  whyReliable: string;
+  originalUrl?: string | null;
+  createdAt: string | Date;
+}
 
 export const AVAILABLE_TAGS = [
   "tempestade solar", "aurora boreal", "terremoto", "tufão", "ciclone", "chuva", 
@@ -16,7 +33,7 @@ export const AVAILABLE_TAGS = [
   "comportamentos animais", "luzes no céu", "apocalipse"
 ];
 
-const USER_ID = "default-user"; // In a real app, this would come from auth
+const USER_ID = "default-user";
 
 interface StoreContextType {
   preferences: UserPreferences;
@@ -47,7 +64,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load preferences from backend
   useEffect(() => {
     const loadPreferences = async () => {
       try {
@@ -62,7 +78,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadPreferences();
   }, []);
 
-  // Apply visual preferences
   useEffect(() => {
     document.documentElement.classList.toggle("dark", preferences.highContrast);
     document.documentElement.style.fontSize = 
@@ -70,7 +85,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       preferences.textSize === "extra_large" ? "24px" : "16px";
   }, [preferences.highContrast, preferences.textSize]);
 
-  // Load feed and sources
   const refreshFeed = async () => {
     setIsLoading(true);
     try {
@@ -78,7 +92,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         api.getNews(),
         api.getSources()
       ]);
-      setFeed(newsData);
+      setFeed(newsData as NewsItem[]);
       setSources(sourcesData);
     } catch (error) {
       console.error("Failed to refresh feed:", error);

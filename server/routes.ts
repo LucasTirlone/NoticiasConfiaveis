@@ -5,6 +5,17 @@ import { insertSourceSchema, insertUserPreferencesSchema } from "@shared/schema"
 import { fetchAllRSS, fetchRSSFromSource } from "./services/rss-fetcher";
 import { z } from "zod";
 
+// Helper to enrich news items with full source objects
+async function enrichNewsItems(items: any[]) {
+  const allSources = await storage.getAllSources();
+  const sourcesMap = new Map(allSources.map(s => [s.id, s]));
+  
+  return items.map(item => ({
+    ...item,
+    sources: item.sourceIds.map((id: string) => sourcesMap.get(id)).filter(Boolean)
+  }));
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -14,7 +25,8 @@ export async function registerRoutes(
   app.get("/api/news", async (req, res) => {
     try {
       const items = await storage.getAllNewsItems(50);
-      res.json(items);
+      const enriched = await enrichNewsItems(items);
+      res.json(enriched);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch news" });
     }
@@ -26,7 +38,8 @@ export async function registerRoutes(
       if (!item) {
         return res.status(404).json({ error: "News item not found" });
       }
-      res.json(item);
+      const [enriched] = await enrichNewsItems([item]);
+      res.json(enriched);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch news item" });
     }
