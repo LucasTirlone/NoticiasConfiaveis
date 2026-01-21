@@ -16,6 +16,9 @@ async function enrichNewsItems(items: any[]) {
   }));
 }
 
+// Track refresh progress for SSE
+let refreshProgress = { current: 0, total: 0, status: "idle", message: "" };
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -24,7 +27,15 @@ export async function registerRoutes(
   // ===== NEWS ITEMS =====
   app.get("/api/news", async (req, res) => {
     try {
-      const items = await storage.getAllNewsItems(50);
+      const tags = req.query.tags ? String(req.query.tags).split(",") : null;
+      
+      let items;
+      if (tags && tags.length > 0) {
+        items = await storage.getNewsItemsByTags(tags, 50);
+      } else {
+        items = await storage.getAllNewsItems(50);
+      }
+      
       const enriched = await enrichNewsItems(items);
       res.json(enriched);
     } catch (error) {
@@ -104,11 +115,31 @@ export async function registerRoutes(
   });
 
   // ===== RSS REFRESH =====
+  app.get("/api/refresh-progress", (req, res) => {
+    res.json(refreshProgress);
+  });
+
   app.post("/api/refresh-feed", async (req, res) => {
     try {
-      await fetchAllRSS();
+      const allSources = await storage.getAllSources();
+      const sourcesWithRSS = allSources.filter(s => s.rssUrl);
+      
+      refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Iniciando..." };
+      
+      for (let i = 0; i < sourcesWithRSS.length; i++) {
+        refreshProgress = { 
+          current: i + 1, 
+          total: sourcesWithRSS.length, 
+          status: "loading", 
+          message: `Buscando: ${sourcesWithRSS[i].name}` 
+        };
+        await fetchRSSFromSource(sourcesWithRSS[i].id);
+      }
+      
+      refreshProgress = { current: sourcesWithRSS.length, total: sourcesWithRSS.length, status: "complete", message: "Concluído!" };
       res.json({ success: true, message: "Feed refreshed successfully" });
     } catch (error) {
+      refreshProgress = { current: 0, total: 0, status: "error", message: "Erro ao atualizar" };
       res.status(500).json({ error: "Failed to refresh feed" });
     }
   });

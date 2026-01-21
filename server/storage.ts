@@ -13,7 +13,7 @@ import {
   userPreferences
 } from "@shared/schema";
 import { db } from "../db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -32,7 +32,9 @@ export interface IStorage {
   getAllNewsItems(limit?: number): Promise<NewsItem[]>;
   getNewsItem(id: string): Promise<NewsItem | undefined>;
   createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
-  getNewsItemsByTags(tags: string[]): Promise<NewsItem[]>;
+  getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
+  findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined>;
+  countNewsItems(): Promise<number>;
   
   // User Preferences
   getUserPreferences(id: string): Promise<UserPreferences | undefined>;
@@ -99,12 +101,30 @@ export class DatabaseStorage implements IStorage {
     return newItem;
   }
 
-  async getNewsItemsByTags(tags: string[]): Promise<NewsItem[]> {
-    // Simple implementation - in production you'd want better tag filtering
-    const allItems = await this.getAllNewsItems();
-    return allItems.filter(item => 
-      item.tags.some(tag => tags.includes(tag))
+  async getNewsItemsByTags(tags: string[], limit: number = 50): Promise<NewsItem[]> {
+    // Get more items to ensure we have enough after filtering
+    const allItems = await db.select()
+      .from(newsItems)
+      .orderBy(desc(newsItems.timestamp))
+      .limit(500);
+    
+    const filtered = allItems.filter(item => 
+      item.tags.some(tag => tags.includes(tag) || tags.includes("geral"))
     );
+    
+    return filtered.slice(0, limit);
+  }
+
+  async findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined> {
+    const [item] = await db.select().from(newsItems).where(
+      or(eq(newsItems.originalUrl, url), eq(newsItems.title, title))
+    );
+    return item;
+  }
+
+  async countNewsItems(): Promise<number> {
+    const items = await db.select().from(newsItems);
+    return items.length;
   }
 
   // User Preferences

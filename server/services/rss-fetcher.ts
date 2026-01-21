@@ -87,6 +87,14 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
     
     for (const item of feed.items.slice(0, 5)) { // Limit to 5 most recent
       const title = item.title || "Sem título";
+      const originalUrl = item.link || source.url;
+      
+      // Check for duplicates before inserting
+      const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
+      if (existing) {
+        continue; // Skip duplicate
+      }
+      
       const content = item.contentSnippet || item.content || item.summary || "";
       const tags = extractTags(`${title} ${content}`);
       const { reliability, whyReliable } = calculateReliability(source.type, 1);
@@ -103,7 +111,7 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         sourceIds: [sourceId],
         verificationNotes: `Fonte: ${source.name}`,
         whyReliable,
-        originalUrl: item.link || source.url,
+        originalUrl,
       };
 
       await storage.createNewsItem(newsItem);

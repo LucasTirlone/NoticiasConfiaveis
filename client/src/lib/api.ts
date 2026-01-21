@@ -2,10 +2,23 @@ import type { NewsItem, Source, UserPreferences } from "@shared/schema";
 
 const API_BASE = "/api";
 
+export interface RefreshProgress {
+  current: number;
+  total: number;
+  status: "idle" | "loading" | "complete" | "error";
+  message: string;
+}
+
 export const api = {
   // News
-  async getNews(): Promise<NewsItem[]> {
-    const res = await fetch(`${API_BASE}/news`);
+  async getNews(tags?: string[]): Promise<NewsItem[]> {
+    let params = "";
+    if (tags && tags.length > 0) {
+      const searchParams = new URLSearchParams();
+      searchParams.set("tags", tags.join(","));
+      params = `?${searchParams.toString()}`;
+    }
+    const res = await fetch(`${API_BASE}/news${params}`);
     if (!res.ok) throw new Error("Failed to fetch news");
     return res.json();
   },
@@ -58,11 +71,17 @@ export const api = {
     return res.json();
   },
 
-  // Feed refresh
+  // Feed refresh with progress
   async refreshFeed(): Promise<void> {
     const res = await fetch(`${API_BASE}/refresh-feed`, {
       method: "POST",
     });
     if (!res.ok) throw new Error("Failed to refresh feed");
+  },
+
+  async getRefreshProgress(): Promise<RefreshProgress> {
+    const res = await fetch(`${API_BASE}/refresh-progress`);
+    if (!res.ok) throw new Error("Failed to get progress");
+    return res.json();
   },
 };

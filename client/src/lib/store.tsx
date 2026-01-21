@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import type { Source as DBSource, UserPreferences as DBUserPreferences } from "@shared/schema";
-import { api } from "./api";
+import { api, type RefreshProgress } from "./api";
 
 export type ReliabilityLevel = "high" | "medium" | "low" | "investigating";
 export type AlertLevel = "critical" | "warning" | "info";
@@ -8,7 +8,6 @@ export type AlertLevel = "critical" | "warning" | "info";
 export interface Source extends DBSource {}
 export interface UserPreferences extends DBUserPreferences {}
 
-// Extended NewsItem that includes populated sources from the API
 export interface NewsItem {
   id: string;
   title: string;
@@ -19,7 +18,7 @@ export interface NewsItem {
   reliability: ReliabilityLevel;
   alertLevel: AlertLevel;
   sourceIds: string[];
-  sources: Source[]; // Populated by backend
+  sources: Source[];
   verificationNotes: string;
   whyReliable: string;
   originalUrl?: string | null;
@@ -28,9 +27,9 @@ export interface NewsItem {
 
 export const AVAILABLE_TAGS = [
   "tempestade solar", "aurora boreal", "terremoto", "tufão", "ciclone", "chuva", 
-  "enchente", "onda de calor", "deslizamento", "epidemia", "maremoto", "tsunami",
-  "vulcão", "erupção", "incêndio", "incêndio florestal", "seca", "vírus", "doenças",
-  "comportamentos animais", "luzes no céu", "apocalipse"
+  "enchente", "onda de calor", "deslizamento", "epidemia", "erupção", "vírus", "seca",
+  "vulcão", "incêndio", "incêndio florestal", "tsunami", "maremoto", "doenças",
+  "comportamentos animais", "luzes no céu", "apocalipse", "geral"
 ];
 
 const USER_ID = "default-user";
@@ -42,8 +41,9 @@ interface StoreContextType {
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
   toggleTag: (tag: string) => void;
   markOnboardingComplete: () => void;
-  refreshFeed: () => void;
+  refreshFeed: () => Promise<void>;
   isLoading: boolean;
+  refreshProgress: RefreshProgress;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -62,7 +62,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [feed, setFeed] = useState<NewsItem[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshProgress, setRefreshProgress] = useState<RefreshProgress>({
+    current: 0,
+    total: 0,
+    status: "idle",
+    message: ""
+  });
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -85,25 +91,89 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       preferences.textSize === "extra_large" ? "24px" : "16px";
   }, [preferences.highContrast, preferences.textSize]);
 
-  const refreshFeed = async () => {
-    setIsLoading(true);
+  const loadNews = async (tags?: string[]) => {
     try {
-      const [newsData, sourcesData] = await Promise.all([
-        api.getNews(),
-        api.getSources()
-      ]);
+      const newsData = await api.getNews(tags);
       setFeed(newsData as NewsItem[]);
-      setSources(sourcesData);
     } catch (error) {
-      console.error("Failed to refresh feed:", error);
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to load news:", error);
     }
   };
 
+  const refreshFeed = async () => {
+    setIsLoading(true);
+    setRefreshProgress({ current: 0, total: 0, status: "loading", message: "Iniciando..." });
+    
+    let lastTotal = 0;
+    
+    try {
+      // Start the refresh process
+      const refreshPromise = api.refreshFeed();
+      
+      // Poll for progress
+      const pollProgress = async () => {
+        try {
+          const progress = await api.getRefreshProgress();
+          setRefreshProgress(progress);
+          lastTotal = progress.total;
+          
+          if (progress.status === "loading") {
+            setTimeout(pollProgress, 300);
+          }
+        } catch (e) {
+          // Ignore polling errors
+        }
+      };
+      
+      pollProgress();
+      await refreshPromise;
+      
+      // Load news with user's selected tags
+      const tagsToUse = preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined;
+      await loadNews(tagsToUse);
+      
+      const sourcesData = await api.getSources();
+      setSources(sourcesData);
+      
+      // Use actual total from backend
+      setRefreshProgress({ current: lastTotal, total: lastTotal, status: "complete", message: "Concluído!" });
+    } catch (error) {
+      console.error("Failed to refresh feed:", error);
+      setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao atualizar" });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => {
+        setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
+      }, 2000);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    refreshFeed();
-  }, []);
+    const initialLoad = async () => {
+      setIsLoading(true);
+      setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
+      
+      try {
+        const [newsData, sourcesData] = await Promise.all([
+          api.getNews(preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined),
+          api.getSources()
+        ]);
+        setFeed(newsData as NewsItem[]);
+        setSources(sourcesData);
+        setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+        setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro" });
+      } finally {
+        setIsLoading(false);
+        setTimeout(() => {
+          setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
+        }, 1500);
+      }
+    };
+    initialLoad();
+  }, [preferences.selectedTags]);
 
   const updatePreferences = async (newPrefs: Partial<UserPreferences>) => {
     const updated = { ...preferences, ...newPrefs };
@@ -138,7 +208,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleTag, 
       markOnboardingComplete,
       refreshFeed,
-      isLoading
+      isLoading,
+      refreshProgress
     }}>
       {children}
     </StoreContext.Provider>
