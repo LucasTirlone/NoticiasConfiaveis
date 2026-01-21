@@ -41,6 +41,8 @@ interface StoreContextType {
   sources: Source[];
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
   toggleTag: (tag: string) => void;
+  selectAllTags: () => void;
+  clearAllTags: () => void;
   markOnboardingComplete: () => void;
   refreshFeed: () => Promise<void>;
   loadNews: (tags?: string[]) => Promise<void>;
@@ -53,7 +55,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<UserPreferences>({
     id: USER_ID,
-    selectedTags: [],
+    selectedTags: [...AVAILABLE_TAGS],
     region: "",
     sensitivity: "all",
     textSize: "normal",
@@ -157,13 +159,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
       
       try {
-        const [newsData, sourcesData] = await Promise.all([
-          api.getNews(preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined),
-          api.getSources()
-        ]);
-        setFeed(newsData as NewsItem[]);
-        setSources(sourcesData);
-        setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        // If no tags selected, don't fetch news
+        if (preferences.selectedTags.length === 0) {
+          setFeed([]);
+          const sourcesData = await api.getSources();
+          setSources(sourcesData);
+          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        } else {
+          const [newsData, sourcesData] = await Promise.all([
+            api.getNews(preferences.selectedTags),
+            api.getSources()
+          ]);
+          setFeed(newsData as NewsItem[]);
+          setSources(sourcesData);
+          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        }
       } catch (error) {
         console.error("Failed to load initial data:", error);
         setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro" });
@@ -201,6 +211,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updatePreferences({ onboardingCompleted: true });
   };
 
+  const selectAllTags = () => {
+    updatePreferences({ selectedTags: [...AVAILABLE_TAGS] });
+  };
+
+  const clearAllTags = () => {
+    updatePreferences({ selectedTags: [] });
+  };
+
   return (
     <StoreContext.Provider value={{ 
       preferences, 
@@ -208,6 +226,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sources, 
       updatePreferences, 
       toggleTag, 
+      selectAllTags,
+      clearAllTags,
       markOnboardingComplete,
       refreshFeed,
       loadNews,
