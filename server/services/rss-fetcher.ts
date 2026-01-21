@@ -192,9 +192,18 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
   try {
     const feed = await parser.parseURL(source.rssUrl);
     
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    
     for (const item of feed.items.slice(0, 10)) {
       const title = item.title || "Sem título";
       const originalUrl = item.link || source.url;
+      
+      // Check if news is within 48 hours FIRST before any processing
+      const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+      if (!pubDate || pubDate < fortyEightHoursAgo) {
+        console.log(`Notícia antiga (>48h) ignorada: ${title.slice(0, 50)}...`);
+        continue;
+      }
       
       const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
       if (existing) {
