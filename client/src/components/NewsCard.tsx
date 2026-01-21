@@ -17,8 +17,15 @@ export function NewsCard({ item }: { item: NewsItem }) {
         `}
       >
         <div className="flex justify-between items-start gap-3">
-          <TrustBadge level={item.reliability} />
-          <span className="text-muted-foreground text-sm flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-md">
+          <div className="flex items-center gap-2 flex-wrap">
+            <TrustBadge level={item.reliability} />
+            {item.sources[0] && (
+              <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                {item.sources[0].name}
+              </span>
+            )}
+          </div>
+          <span className="text-muted-foreground text-sm flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-md shrink-0">
             <Clock className="w-3 h-3" />
             {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true, locale: ptBR })}
           </span>
