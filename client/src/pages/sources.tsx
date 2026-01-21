@@ -52,9 +52,8 @@ export default function Sources() {
       setNewUrl("");
       setNewName("");
       toast.success("Fonte adicionada com sucesso!");
-      // We don't refresh the whole feed anymore to make it fast
-      // No reload needed if we just refresh the local state or if it's managed by a query
-      // For now, let's keep it simple and just not redirect
+      // Simply reload to refresh the source list. Wouter handles the URL.
+      window.location.reload(); 
     } catch (error) {
       toast.error("Erro ao adicionar fonte");
     } finally {
@@ -68,6 +67,7 @@ export default function Sources() {
     try {
       await api.deleteSource(id);
       toast.success("Fonte removida");
+      window.location.reload();
     } catch (error) {
       toast.error("Erro ao remover fonte");
     }
