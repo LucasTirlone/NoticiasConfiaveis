@@ -86,12 +86,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   const now = new Date();
-  const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
   
   const filteredFeed = feed.filter(item => {
     const itemDate = new Date(item.timestamp);
-    return itemDate >= fortyEightHoursAgo;
+    // Real-time filtering by selected tags
+    const matchesTags = preferences.selectedTags.length === 0 || 
+                       item.tags.some(tag => preferences.selectedTags.includes(tag));
+    return itemDate >= seventyTwoHoursAgo && matchesTags;
   });
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [preferences.selectedTags]);
 
   const totalPages = Math.max(1, Math.ceil(filteredFeed.length / ITEMS_PER_PAGE));
   const paginatedFeed = filteredFeed.slice(

@@ -255,7 +255,7 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
 
       const verification = await verifySentinela(title, content);
       if (!verification || !verification.aprovado) {
-        console.log(`Sentinela rejeitou item de ${source.name}: ${title.slice(0, 50)}...`);
+        console.log(`Sentinela rejeitou item de ${source.name}: ${title.slice(0, 50)}... - ${verification?.resumo_analise || 'sem motivo'}`);
         continue;
       }
 
