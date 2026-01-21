@@ -1,0 +1,59 @@
+1. Espaço & Astronomia
+Tempestade Solar: tempestade geomagnética, ejeção de massa coronal, CME, mancha solar, atividade solar extrema, flare solar.
+
+Aurora Boreal: aurora austral, luzes do norte, tempestade geomagnética visível.
+
+Eclipse: eclipse total, eclipse anular, lua de sangue, anel de fogo, ocultação estelar.
+
+Asteroide / Meteoro: asteroide, meteoro, bólido, bola de fogo, NEO (Near-Earth Object), risco de impacto, passagem próxima.
+
+Lixo Espacial: reentrada atmosférica, queda de satélite, detritos espaciais, foguete descontrolado, estação espacial.
+
+🌪️ 2. Fenômenos Naturais (Clima e Geologia)
+Terremoto: sismo, tremor de terra, abalo sísmico, magnitude Richter, epicentro.
+
+Tsunami: maremoto, alerta de tsunami, onda gigante, recuo do mar.
+
+Vulcão: erupção vulcânica, fluxo piroclástico, nuvem de cinzas, lava, atividade vulcânica.
+
+Ciclone / Tornado: furacão, tufão, tempestade tropical, vendaval, tromba d'água.
+
+Chuva Forte / Enchente: alagamento, inundação, transbordamento de rio, tempestade severa, acumulado de chuva.
+
+Deslizamento: queda de barreira, desmoronamento, soterramento, deslizamento de terra.
+
+Onda de Calor / Seca: seca extrema, estiagem, recorde de temperatura, falta de água, deserto.
+
+Frio Extremo / Nevasca: geada negra, tempestade de inverno, congelamento, frente fria intensa, neve.
+
+Granizo: chuva de pedra, granizo severo, danos por granizo.
+
+Maré Alta: ressaca, avanço do mar, erosão costeira.
+
+🧬 3. Riscos Biológicos e Ambientais
+Epidemia / Vírus: surto, pandemia, contágio, OMS alerta, novo vírus, patógeno, quarentena, febre hemorrágica.
+
+Incêndio: incêndio florestal, queimada, fogo em mata, incêndio de grandes proporções (industrial/urbano).
+
+Poluição / Radiação: vazamento nuclear, radioativo, Césio, vazamento de óleo, maré negra, nuvem tóxica, qualidade do ar perigosa.
+
+🏭 4. Riscos Tecnológicos e Infraestrutura (Novos)
+Colapso Estrutural: rompimento de barragem, queda de ponte, desabamento de prédio.
+
+Apagão: blackout, falta de luz massiva, colapso energético, queda do sistema elétrico.
+
+Acidente de Transporte: queda de avião, acidente aéreo, descarrilamento de trem, naufrágio.
+
+Ciberataque: ataque hacker, ransomware, sequestro de dados, infraestrutura crítica, vazamento massivo.
+
+5. Geopolítica e Conflitos (Nova Categoria)
+
+Conflito Armado / Guerra: Declaração de guerra, invasão, incursão militar, ataque aéreo, bombardeio, mísseis balísticos, troca de tiros na fronteira, cessar-fogo (rompimento), zona de exclusão aérea.
+
+Golpe de Estado / Instabilidade: Golpe militar, tentativa de golpe, lei marcial, estado de sítio, queda do governo, renúncia forçada, tomada do palácio, junta militar.
+
+Terrorismo / Atentado: Atentado terrorista, carro-bomba, homem-bomba, ataque suicida, sequestro em massa, célula extremista, ataque coordenado.
+
+Ameaça Nuclear / ADM (Armas de Destruição em Massa): Teste nuclear, enriquecimento de urânio, ogiva nuclear, armas químicas, armas biológicas, lançamento de ICBM, radiação (contexto bélico).
+
+Crise Diplomática Grave (Risco de Guerra): Rompimento de relações diplomáticas, expulsão de embaixadores, fechamento de fronteira, sanções econômicas severas, embargo total, mobilização de tropas.

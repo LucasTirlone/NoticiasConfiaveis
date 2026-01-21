@@ -1,44 +1,52 @@
-import { useStore, AVAILABLE_TAGS } from "@/lib/store";
+import { useStore, CATEGORIES } from "@/lib/store";
 import { NewsCard } from "@/components/NewsCard";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 export default function Feed() {
-  const { feed, isLoading, preferences, refreshFeed, refreshProgress, loadNews, selectAllTags, clearAllTags, updatePreferences } = useStore();
+  const { 
+    paginatedFeed, 
+    isLoading, 
+    preferences, 
+    refreshFeed, 
+    refreshProgress, 
+    toggleTheme,
+    selectAllThemes,
+    clearAllThemes,
+    selectCategory,
+    deselectCategory,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    feed
+  } = useStore();
+  
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<string[]>(preferences.selectedTags);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  useEffect(() => {
-    setActiveFilters(preferences.selectedTags);
-  }, [preferences.selectedTags]);
-
-  const handleTagClick = async (tag: string) => {
-    const newFilters = activeFilters.includes(tag)
-      ? activeFilters.filter(t => t !== tag)
-      : [...activeFilters, tag];
-    setActiveFilters(newFilters);
-    updatePreferences({ selectedTags: newFilters });
+  const toggleCategoryExpand = (categoryId: string) => {
+    setExpandedCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
 
-  const handleSelectAll = () => {
-    setActiveFilters([...AVAILABLE_TAGS]);
-    selectAllTags();
+  const isCategoryFullySelected = (categoryId: string) => {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    if (!category) return false;
+    return category.themes.every(t => preferences.selectedTags.includes(t.id));
   };
 
-  const handleClearAll = () => {
-    setActiveFilters([]);
-    clearAllTags();
+  const isCategoryPartiallySelected = (categoryId: string) => {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    if (!category) return false;
+    const selectedCount = category.themes.filter(t => preferences.selectedTags.includes(t.id)).length;
+    return selectedCount > 0 && selectedCount < category.themes.length;
   };
-
-  const filteredFeed = feed.filter(item => {
-    if (preferences.sensitivity === "critical_only" && item.alertLevel === "info") {
-      return false;
-    }
-    return true;
-  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -47,8 +55,8 @@ export default function Feed() {
   };
 
   const showLoadingBar = refreshProgress.status !== "idle" || isLoading;
-  const allSelected = activeFilters.length === AVAILABLE_TAGS.length;
-  const noneSelected = activeFilters.length === 0;
+  const allSelected = preferences.selectedTags.length === CATEGORIES.flatMap(c => c.themes).length;
+  const noneSelected = preferences.selectedTags.length === 0;
 
   return (
     <div className="space-y-6">
@@ -72,7 +80,7 @@ export default function Feed() {
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   {feed.length > 0 
-                    ? `${feed.length} eventos monitorados em tempo real`
+                    ? `${feed.length} alertas nas últimas 72h`
                     : "Selecione filtros para ver notícias"
                   }
                 </p>
@@ -96,14 +104,14 @@ export default function Feed() {
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-muted-foreground" />
               <p className="font-medium text-muted-foreground">
-                Filtrar por tema:
+                Filtrar por categoria:
               </p>
             </div>
             <div className="flex gap-2">
               <Button 
                 variant={allSelected ? "default" : "outline"} 
                 size="sm"
-                onClick={handleSelectAll}
+                onClick={selectAllThemes}
                 className="text-sm"
                 data-testid="select-all-button"
               >
@@ -113,7 +121,7 @@ export default function Feed() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={handleClearAll}
+                onClick={clearAllThemes}
                 disabled={noneSelected}
                 className="text-sm"
                 data-testid="clear-all-button"
@@ -123,31 +131,71 @@ export default function Feed() {
               </Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {AVAILABLE_TAGS.map(tag => {
-              const isActive = activeFilters.includes(tag);
+
+          <div className="space-y-3">
+            {CATEGORIES.map(category => {
+              const isExpanded = expandedCategories.includes(category.id);
+              const isFullySelected = isCategoryFullySelected(category.id);
+              const isPartiallySelected = isCategoryPartiallySelected(category.id);
+              
               return (
-                <button
-                  key={tag}
-                  onClick={() => handleTagClick(tag)}
-                  aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                    isActive 
-                      ? 'bg-primary text-primary-foreground shadow-md' 
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }`}
-                  data-testid={`tag-filter-${tag}`}
-                >
-                  {isActive ? '✓ ' : ''}{tag.charAt(0).toUpperCase() + tag.slice(1)}
-                </button>
+                <div key={category.id} className="border rounded-xl overflow-hidden">
+                  <div 
+                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+                      isFullySelected ? 'bg-primary/10' : isPartiallySelected ? 'bg-primary/5' : 'bg-muted/30'
+                    }`}
+                    onClick={() => toggleCategoryExpand(category.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{category.icon}</span>
+                      <span className="font-medium">{category.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({category.themes.filter(t => preferences.selectedTags.includes(t.id)).length}/{category.themes.length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={isFullySelected ? "default" : "outline"}
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          isFullySelected ? deselectCategory(category.id) : selectCategory(category.id);
+                        }}
+                        className="text-xs h-7"
+                      >
+                        {isFullySelected ? "✓" : "Selecionar"}
+                      </Button>
+                      <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </div>
+                  </div>
+                  
+                  {isExpanded && (
+                    <div className="p-3 bg-background border-t">
+                      <div className="flex flex-wrap gap-2">
+                        {category.themes.map(theme => {
+                          const isActive = preferences.selectedTags.includes(theme.id);
+                          return (
+                            <button
+                              key={theme.id}
+                              onClick={() => toggleTheme(theme.id)}
+                              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                                isActive 
+                                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                              }`}
+                              data-testid={`theme-filter-${theme.id}`}
+                            >
+                              {isActive ? '✓ ' : ''}{theme.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
-          {activeFilters.length > 0 && activeFilters.length < AVAILABLE_TAGS.length && (
-            <p className="text-sm text-muted-foreground">
-              {activeFilters.length} de {AVAILABLE_TAGS.length} temas selecionados
-            </p>
-          )}
         </section>
 
         {noneSelected ? (
@@ -162,9 +210,9 @@ export default function Feed() {
               Nenhum filtro selecionado
             </p>
             <p className="text-muted-foreground mb-6">
-              Selecione pelo menos um tema para ver as notícias.
+              Selecione pelo menos uma categoria ou tema para ver as notícias.
             </p>
-            <Button onClick={handleSelectAll} data-testid="select-all-empty-button">
+            <Button onClick={selectAllThemes} data-testid="select-all-empty-button">
               <CheckCheck className="w-4 h-4 mr-2" />
               Selecionar todos os temas
             </Button>
@@ -176,34 +224,85 @@ export default function Feed() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-4">
-            {filteredFeed.length > 0 ? (
-              filteredFeed.map((item, idx) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
+          <>
+            <div className="grid gap-4">
+              {paginatedFeed.length > 0 ? (
+                paginatedFeed.map((item, idx) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <NewsCard item={item} />
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-lg">
+                    Nenhuma notícia encontrada para os temas selecionados nas últimas 72 horas.
+                  </p>
+                  <Button 
+                    variant="link" 
+                    onClick={handleRefresh} 
+                    className="mt-2 text-lg" 
+                    data-testid="refresh-empty-button"
+                  >
+                    Atualizar notícias
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 py-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
                 >
-                  <NewsCard item={item} />
-                </motion.div>
-              ))
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">
-                  Nenhuma notícia encontrada para os temas selecionados.
-                </p>
-                <Button 
-                  variant="link" 
-                  onClick={handleRefresh} 
-                  className="mt-2 text-lg" 
-                  data-testid="refresh-empty-button"
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-10"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4"
                 >
-                  Atualizar notícias
+                  Próxima
+                  <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

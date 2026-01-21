@@ -1,26 +1,95 @@
 import Parser from "rss-parser";
 import { storage } from "../storage";
 import type { InsertNewsItem } from "@shared/schema";
+import { findThemesByText } from "@shared/categories";
 import { GoogleGenAI } from "@google/genai";
 
 const parser = new Parser();
 
-const AVAILABLE_TAGS = [
-  "tempestade solar", "aurora boreal", "terremoto", "tsunami", "ciclone", "tornado",
-  "chuva forte", "enchente", "onda de calor", "frio extremo", "deslizamento", "seca",
-  "granizo", "nevasca", "vulcão", "incêndio", "epidemia", "vírus", "radiação",
-  "poluição", "maré alta"
-];
+const SENTINELA_PROMPT = `# ROLE
+Você é o **Sentinela IA**, um Analista Sênior de Riscos Globais e Desastres para o aplicativo "Verifica". Sua função é atuar como um filtro de segurança rigoroso, analisando feeds de notícias em tempo real e selecionando apenas eventos de **ALTO IMPACTO**, **RISCO IMINENTE** ou **RELEVÂNCIA CIENTÍFICA**.
 
-async function verifyImpactAndRelevance(title: string, content: string): Promise<{
+# OBJECTIVE
+Receba um objeto contendo \`título\` e \`descrição\` de uma notícia. Retorne um JSON indicando se a notícia deve ser aprovada ou rejeitada, baseado em uma análise de 4 etapas.
+
+# KNOWLEDGE BASE (TÓPICOS MONITORADOS)
+Use estas categorias como guia. Se a notícia não se encaixar aqui, rejeite.
+
+1.  **FENÔMENOS NATURAIS:** Terremoto, Tsunami, Vulcão, Ciclone/Furacão, Tornado, Chuva Severa/Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo/Nevasca, Granizo, Maré Alta/Ressaca.
+2.  **ESPAÇO & ASTRONOMIA:** Tempestade Solar/Geomagnética, Aurora Boreal, Eclipse, Asteroide/Meteoro (NEO), Lixo Espacial (Reentrada).
+3.  **RISCOS BIOLÓGICOS & AMBIENTAIS:** Epidemia/Vírus (Surtos Novos), Incêndio (Florestal ou Grande Escala), Poluição Tóxica/Radiação.
+4.  **RISCOS TECNOLÓGICOS:** Colapso Estrutural (Barragens/Pontes), Apagão (Blackout massivo), Acidente de Transporte (Massa/Aéreo), Ciberataque (Infraestrutura).
+5.  **GEOPOLÍTICA & CONFLITOS:** Guerra/Invasão, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática Grave (Ruptura).
+
+---
+
+# PROTOCOLO DE ANÁLISE (CHAIN OF THOUGHT)
+
+Para cada notícia, você deve processar estas 4 verificações sequenciais. Se falhar em qualquer uma, REJEITE.
+
+### PASSO 1: VERIFICAÇÃO SEMÂNTICA (Literal vs. Metafórico)
+A notícia usa os termos de forma literal?
+* **REJEITAR (Metáforas):** "Terremoto político", "Tempestade de críticas", "Chuva de gols", "Vírus de computador" (exceto se for Ciberataque infraestrutural), "Bomba no mercado financeiro".
+* **APROVAR:** Apenas eventos físicos e reais.
+
+### PASSO 2: FILTRO DE MAGNITUDE (Macro vs. Micro)
+O evento tem escala relevante para um alerta público?
+* **REJEITAR (Micro/Local):** Incêndio em uma única casa, acidente de carro comum, chuva leve, crime urbano comum, briga de bar.
+* **APROVAR (Macro/Regional):** Incêndios florestais, enchentes que param cidades, acidentes com múltiplas vítimas, eventos que afetam infraestrutura (aeroportos, represas, hospitais).
+
+### PASSO 3: FILTRO GEOPOLÍTICO (Ação vs. Retórica)
+Se o tema for Geopolítica, separe o fato do discurso.
+* **REJEITAR (Retórica):** Discursos de líderes, ameaças verbais vazias, pesquisas de opinião, reuniões protocolares, "tensões aumentam" (sem ação).
+* **APROVAR (Cinética/Fática):** Movimentação de tropas, disparos de mísseis, ataques confirmados, sanções assinadas, mortes, golpes de estado consumados.
+
+### PASSO 4: VALIDAÇÃO CIENTÍFICA (Para Espaço/Vulcões)
+* **REJEITAR:** Curiosidades menores ("Lua bonita hoje"), vulcão apenas fumegando (sem mudança de alerta).
+* **APROVAR:** Eventos raros (Eclipses), perigosos (Tempestades Solares G4/G5) ou mudanças de nível de alerta vulcânico.
+
+---
+
+# FEW-SHOT EXAMPLES (Padrão de Qualidade)
+
+Input: "Mercado financeiro sofre terremoto com a nova taxa de juros."
+Output: {"aprovado": false, "motivo": "Metáfora para economia"}
+
+Input: "Incêndio destrói loja de sapatos no centro, ninguém se feriu."
+Output: {"aprovado": false, "motivo": "Escala micro/local irrelevante"}
+
+Input: "Coreia do Norte promete destruir inimigos em discurso anual."
+Output: {"aprovado": false, "motivo": "Retórica geopolítica sem ação cinética"}
+
+Input: "USGS reporta terremoto de magnitude 7.2 no Japão, alerta de Tsunami emitido."
+Output: {"aprovado": true, "tag": "Terremoto", "risco": "Crítico"}
+
+Input: "Tempestade Solar classe X atinge a Terra, risco de falha em satélites."
+Output: {"aprovado": true, "tag": "Tempestade Solar", "risco": "Alto"}
+
+Input: "Tanques cruzam a fronteira e iniciam invasão terrestre na região leste."
+Output: {"aprovado": true, "tag": "Guerra / Conflito", "risco": "Crítico"}
+
+---
+
+# OUTPUT FORMAT (JSON ONLY)
+
+Responda estritamente com este JSON. Não adicione texto fora do JSON.
+
+{
+  "aprovado": boolean,
+  "tag_exibicao": string, // Escolha a melhor tag da lista "KNOWLEDGE BASE"
+  "nivel_de_risco": string, // "Informativo", "Alerta", "Crítico"
+  "resumo_analise": string // Uma frase curta (max 10 palavras) justificando a decisão.
+}`;
+
+async function verifySentinela(title: string, content: string): Promise<{
   aprovado: boolean;
-  analise_de_impacto?: string;
-  tag_sugerida?: string;
+  tag_exibicao?: string;
   nivel_de_risco?: string;
+  resumo_analise?: string;
 } | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-      return { aprovado: true }; // Fallback se a IA não estiver configurada
+      return { aprovado: true };
     }
 
     const ai = new GoogleGenAI({
@@ -31,59 +100,14 @@ async function verifyImpactAndRelevance(title: string, content: string): Promise
       },
     });
 
-    const prompt = `# ROLE
-Você é um Especialista Sênior de Riscos Globais e Desastres Naturais para um sistema de alerta governamental. Sua função é filtrar notícias de feeds RSS e determinar se elas possuem RELEVÂNCIA PÚBLICA e ALTO IMPACTO.
-
-# OBJECTIVE
-Analise a notícia fornecida e decida se ela deve ser publicada no app "Verifica". Sua filtragem deve ser impiedosa: 90% das notícias do dia-a-dia devem ser descartadas. Apenas eventos com potencial catastrófico, impacto regional/nacional ou risco iminente de desastre devem passar.
-
-# CRITÉRIOS DE APROVAÇÃO (IMPACTO E ESCALA)
-Para ser aprovada, a notícia deve atender a pelo menos UM dos seguintes critérios de MAGNITUDE:
-
-1. **Escala Geográfica:** Afeta uma região inteira, cidade, estado ou país. (Ex: "Incêndio na Califórnia" = SIM. "Incêndio no apartamento 302" = NÃO).
-2. **Infraestrutura Crítica:** Causa colapso de serviços (falta de luz em massa, fechamento de aeroportos, destruição de represas).
-3. **Risco à Vida em Massa:** Envolve evacuações, múltiplas vítimas ou alertas oficiais de perigo de vida.
-4. **Anomalia Científica Relevante:** No caso de vulcões, tempestades solares ou vírus, não basta a ocorrência; deve haver um ALERTA DE RISCO aumentado. (Ex: "Vulcão fumegando normalmente" = NÃO. "Vulcão eleva nível de alerta para erupção iminente" = SIM).
-
-# EXEMPLOS DE TREINAMENTO (FEW-SHOT LEARNING)
-
-Input: "Bombeiros controlam incêndio em loja no centro de Osasco."
-Reasoning: O evento é local, restrito a um imóvel, sem risco sistêmico ou evacuação em massa.
-Veredito: REJEITAR
-
-Input: "Tempestade na Grande SP deixa 500 mil sem luz e causa alagamentos nas marginais."
-Reasoning: Afeta infraestrutura crítica (energia/trânsito), atinge milhões de pessoas e tem escala regional.
-Veredito: APROVAR
-
-Input: "Vulcão Etna solta anéis de fumaça, espetáculo visual atrai turistas."
-Reasoning: Atividade vulcânica estética, sem elevação do nível de risco ou perigo à população.
-Veredito: REJEITAR
-
-Input: "Explosão em porto de Beirute gera onda de choque e destrói janelas a 10km."
-Reasoning: Evento catastrófico, danos estruturais massivos, impacto nacional.
-Veredito: APROVAR
-
-Input: "OMS monitora nova variante de gripe com alta taxa de transmissão na Ásia."
-Reasoning: Potencial pandêmico, risco biológico transnacional.
-Veredito: APROVAR
-
-# LISTA DE TAGS PERMITIDAS
-Use apenas uma destas tags em "tag_sugerida": ${AVAILABLE_TAGS.join(", ")}
-
-# FORMATO DE SAÍDA (JSON)
-Responda APENAS um objeto JSON com:
-- "aprovado": (true/false)
-- "analise_de_impacto": (Uma frase curta justificando a escala)
-- "tag_sugerida": (Escolha uma das tags da lista fornecida)
-- "nivel_de_risco": (Baixo/Médio/Alto/Crítico)
-
-Notícia para análise:
-Título: ${title}
-Conteúdo: ${content}`;
+    const inputData = `{
+  "título": "${title.replace(/"/g, '\\"')}",
+  "descrição": "${content.replace(/"/g, '\\"').slice(0, 500)}"
+}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
     });
 
     const text = response.text || "";
@@ -93,7 +117,7 @@ Conteúdo: ${content}`;
     }
     return null;
   } catch (error) {
-    console.error("Error verifying impact:", error);
+    console.error("Error in Sentinela verification:", error);
     return null;
   }
 }
@@ -139,7 +163,7 @@ Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
   }
 }
 
-function calculateReliability(sourceType: "official" | "media" | "blog", sourceCount: number): {
+function calculateReliability(sourceType: "official" | "media" | "blog"): {
   reliability: "high" | "medium" | "low" | "investigating";
   whyReliable: string;
 } {
@@ -168,29 +192,36 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
   try {
     const feed = await parser.parseURL(source.rssUrl);
     
-    for (const item of feed.items.slice(0, 5)) {
+    for (const item of feed.items.slice(0, 10)) {
       const title = item.title || "Sem título";
       const originalUrl = item.link || source.url;
       
       const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
-      if (existing) continue;
+      if (existing) {
+        console.log(`Notícia já existe no banco: ${title.slice(0, 50)}...`);
+        continue;
+      }
       
       const content = item.contentSnippet || item.content || item.summary || "";
       
-      // 1. Filtragem de Impacto (Novo passo solicitado)
-      const verification = await verifyImpactAndRelevance(title, content);
-      if (!verification || !verification.aprovado) {
-        console.log(`Notícia rejeitada por falta de impacto/relevância: ${title}`);
+      const foundThemes = findThemesByText(`${title} ${content}`);
+      if (foundThemes.length === 0) {
+        console.log(`Nenhum tema encontrado para: ${title.slice(0, 50)}...`);
         continue;
       }
 
-      const { reliability, whyReliable } = calculateReliability(source.type, 1);
+      const verification = await verifySentinela(title, content);
+      if (!verification || !verification.aprovado) {
+        console.log(`Sentinela rejeitou: ${title.slice(0, 50)}... - ${verification?.resumo_analise || 'sem motivo'}`);
+        continue;
+      }
+
+      const { reliability, whyReliable } = calculateReliability(source.type);
       
-      // Mapear nível de risco para alert level do sistema
       let alertLevel: "critical" | "warning" | "info" = "info";
-      if (verification.nivel_de_risco === "Crítico" || verification.nivel_de_risco === "Alto") {
+      if (verification.nivel_de_risco === "Crítico") {
         alertLevel = "critical";
-      } else if (verification.nivel_de_risco === "Médio") {
+      } else if (verification.nivel_de_risco === "Alerta") {
         alertLevel = "warning";
       }
 
@@ -198,21 +229,21 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         title,
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
         fullContent: content.slice(0, 1000),
-        tags: [verification.tag_sugerida || "chuva forte"],
+        tags: foundThemes.map(t => t.id),
         timestamp: item.pubDate ? new Date(item.pubDate) : new Date(),
         reliability,
         alertLevel,
         sourceIds: [sourceId],
         verificationNotes: `Fonte: ${source.name}`,
-        impactAnalysis: verification.analise_de_impacto,
+        impactAnalysis: verification.resumo_analise,
         riskLevel: verification.nivel_de_risco,
         whyReliable,
         originalUrl,
       };
 
       const createdItem = await storage.createNewsItem(newsItem);
+      console.log(`Notícia aprovada e salva: ${title.slice(0, 50)}...`);
       
-      // 2. Resumo com IA
       const aiSummary = await generateAiSummary(title, content);
       if (aiSummary) {
         await storage.updateNewsItemAiSummary(createdItem.id, aiSummary);
