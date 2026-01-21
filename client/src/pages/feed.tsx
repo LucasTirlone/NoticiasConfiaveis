@@ -86,16 +86,21 @@ export default function Feed() {
                 </p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-12 w-12 shrink-0 border-primary/30 hover:bg-primary/10"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              data-testid="refresh-button"
-            >
-              <RefreshCw className={`w-6 h-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-primary uppercase tracking-wider hidden sm:inline">
+                Atualizar Notícias
+              </span>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-12 w-12 shrink-0 border-primary/30 hover:bg-primary/10"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                data-testid="refresh-button"
+              >
+                <RefreshCw className={`w-6 h-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </motion.section>
 

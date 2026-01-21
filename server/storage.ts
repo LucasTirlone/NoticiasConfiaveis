@@ -37,6 +37,7 @@ export interface IStorage {
   countNewsItems(): Promise<number>;
   updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void>;
   updateNewsItemTags(id: string, tags: string[]): Promise<void>;
+  updateNewsItemTitle(id: string, title: string): Promise<void>;
   
   // User Preferences
   getUserPreferences(id: string): Promise<UserPreferences | undefined>;
@@ -137,6 +138,12 @@ export class DatabaseStorage implements IStorage {
   async updateNewsItemTags(id: string, tags: string[]): Promise<void> {
     await db.update(newsItems)
       .set({ tags })
+      .where(eq(newsItems.id, id));
+  }
+
+  async updateNewsItemTitle(id: string, title: string): Promise<void> {
+    await db.update(newsItems)
+      .set({ title })
       .where(eq(newsItems.id, id));
   }
 

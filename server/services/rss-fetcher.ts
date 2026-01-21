@@ -138,17 +138,17 @@ async function generateAiSummary(title: string, content: string): Promise<{ summ
 
     const prompt = `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
 
-Título da notícia: ${title}
-
+# CONTEXTO
+Título original: ${title}
 Conteúdo original: ${content}
 
-# TAREFA 1: RESUMO
-Crie um resumo muito claro e simples desta notícia em português brasileiro. O resumo deve:
-- Ser fácil de entender por qualquer pessoa
-- Explicar o que aconteceu de forma objetiva
-- Ter no máximo 3 parágrafos curtos
-- Evitar jargões técnicos
-- Responder: O que? Onde? Quando? Por quê é importante?
+# TAREFA 1: TRADUÇÃO E RESUMO
+Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muito claro e simples.
+- O título traduzido deve ser impactante e fiel ao original.
+- O resumo deve ser fácil de entender por qualquer pessoa, explicando o que aconteceu de forma objetiva.
+- Tenha no máximo 3 parágrafos curtos.
+- Evite jargões técnicos.
+- Responda: O que? Onde? Quando? Por quê é importante?
 
 # TAREFA 2: CATEGORIZAÇÃO
 Analise a notícia e selecione até 3 temas da lista abaixo que sejam relevantes. Identifique o tema PRINCIPAL primeiro.
@@ -156,7 +156,8 @@ Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Ch
 
 Retorne no seguinte formato JSON:
 {
-  "resumo": "seu resumo aqui",
+  "titulo_traduzido": "Título em Português",
+  "resumo": "seu resumo traduzido aqui",
   "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
 }
 
@@ -173,7 +174,8 @@ Responda apenas com o JSON.`;
       const data = JSON.parse(jsonMatch[0]);
       return {
         summary: data.resumo,
-        themes: data.temas || []
+        themes: data.temas || [],
+        translatedTitle: data.titulo_traduzido
       };
     }
     return null;
@@ -288,6 +290,11 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
         // We'll update the tags in the DB too
         await storage.updateNewsItemTags(createdItem.id, finalTags);
+        
+        // Update title with translated version if available
+        if (aiResult.translatedTitle) {
+          await storage.updateNewsItemTitle(createdItem.id, aiResult.translatedTitle);
+        }
       }
     }
 
