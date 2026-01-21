@@ -106,7 +106,7 @@ async function verifySentinela(title: string, content: string): Promise<{
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
     });
 
@@ -177,7 +177,7 @@ Retorne no seguinte formato JSON:
 Responda apenas com o JSON.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
     });
 
