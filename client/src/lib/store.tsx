@@ -42,6 +42,7 @@ interface StoreContextType {
   toggleTag: (tag: string) => void;
   markOnboardingComplete: () => void;
   refreshFeed: () => Promise<void>;
+  loadNews: (tags?: string[]) => Promise<void>;
   isLoading: boolean;
   refreshProgress: RefreshProgress;
 }
@@ -208,6 +209,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleTag, 
       markOnboardingComplete,
       refreshFeed,
+      loadNews,
       isLoading,
       refreshProgress
     }}>
