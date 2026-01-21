@@ -31,9 +31,16 @@ export function LoadingProgress() {
             {refreshProgress.status === "loading" && (
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             )}
-            <span className="text-lg font-medium" data-testid="loading-message">
-              {refreshProgress.message || "Carregando..."}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-lg font-medium" data-testid="loading-message">
+                {refreshProgress.message || "Carregando..."}
+              </span>
+              {refreshProgress.newsCount !== undefined && refreshProgress.newsCount > 0 && (
+                <span className="text-sm font-bold text-green-600 animate-pulse">
+                  +{refreshProgress.newsCount} novas notícias encontradas
+                </span>
+              )}
+            </div>
           </div>
           <span 
             className="text-2xl font-bold text-primary" 

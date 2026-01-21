@@ -18,7 +18,7 @@ async function enrichNewsItems(items: any[]) {
 }
 
 // Track refresh progress for SSE
-let refreshProgress = { current: 0, total: 0, status: "idle", message: "" };
+let refreshProgress = { current: 0, total: 0, status: "idle", message: "", newsCount: 0 };
 
 export async function registerRoutes(
   httpServer: Server,
@@ -140,22 +140,34 @@ export async function registerRoutes(
       const allSources = await storage.getAllSources();
       const sourcesWithRSS = allSources.filter(s => s.rssUrl);
       
-      refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Iniciando..." };
+      let totalNewsCount = 0;
+      refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Iniciando...", newsCount: 0 };
       
       for (let i = 0; i < sourcesWithRSS.length; i++) {
         refreshProgress = { 
           current: i + 1, 
           total: sourcesWithRSS.length, 
           status: "loading", 
-          message: `Buscando: ${sourcesWithRSS[i].name}` 
+          message: `Buscando: ${sourcesWithRSS[i].name}`,
+          newsCount: totalNewsCount
         };
-        await fetchRSSFromSource(sourcesWithRSS[i].id);
+        
+        await fetchRSSFromSource(sourcesWithRSS[i].id, (stats) => {
+          totalNewsCount += stats.count;
+          refreshProgress.newsCount = totalNewsCount;
+        });
       }
       
-      refreshProgress = { current: sourcesWithRSS.length, total: sourcesWithRSS.length, status: "complete", message: "Concluído!" };
-      res.json({ success: true, message: "Feed refreshed successfully" });
+      refreshProgress = { 
+        current: sourcesWithRSS.length, 
+        total: sourcesWithRSS.length, 
+        status: "complete", 
+        message: `Concluído! ${totalNewsCount} novas notícias.`,
+        newsCount: totalNewsCount
+      };
+      res.json({ success: true, message: "Feed refreshed successfully", newsCount: totalNewsCount });
     } catch (error) {
-      refreshProgress = { current: 0, total: 0, status: "error", message: "Erro ao atualizar" };
+      refreshProgress = { current: 0, total: 0, status: "error", message: "Erro ao atualizar", newsCount: 0 };
       res.status(500).json({ error: "Failed to refresh feed" });
     }
   });

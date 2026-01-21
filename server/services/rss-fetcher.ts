@@ -133,7 +133,7 @@ async function verifySentinela(title: string, content: string): Promise<{
   }
 }
 
-async function generateAiSummary(title: string, content: string): Promise<{ summary: string, themes: string[] } | null> {
+async function generateAiSummary(title: string, content: string): Promise<{ summary: string, themes: string[], translatedTitle?: string } | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
       return null;
@@ -224,7 +224,7 @@ function calculateReliability(sourceType: "official" | "media" | "blog"): {
   }
 }
 
-export async function fetchRSSFromSource(sourceId: string): Promise<void> {
+export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: { count: number }) => void): Promise<void> {
   const source = await storage.getSource(sourceId);
   if (!source || !source.rssUrl) return;
 
@@ -236,6 +236,7 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
     
     const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
     let processedCount = 0;
+    let localCount = 0;
     
     for (const item of feed.items) {
       if (processedCount >= 10) break; // Limit to 10 items total per source for performance
@@ -305,6 +306,8 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
       const createdItem = await storage.createNewsItem(newsItem);
       console.log(`Notícia de ${source.name} aprovada: ${title.slice(0, 50)}...`);
       processedCount++;
+      localCount++;
+      if (onProgress) onProgress({ count: localCount });
       
       const aiResult = await generateAiSummary(title, content);
       if (aiResult) {
@@ -334,7 +337,9 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
     await storage.updateSourceLastFetched(sourceId);
     console.log(`--- Busca finalizada em ${source.name} ---\n`);
   } catch (error) {
-    console.error(`Erro ao processar fonte ${source.name}:`, error);
+    console.error(`!!! FALHA CRÍTICA NA FONTE: ${source.name} !!!`);
+    console.error(`URL RSS: ${source.rssUrl}`);
+    console.error(`Erro:`, error);
   }
 }
 
