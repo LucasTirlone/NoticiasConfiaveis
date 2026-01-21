@@ -1,7 +1,7 @@
 import Parser from "rss-parser";
 import { storage } from "../storage";
 import type { InsertNewsItem } from "@shared/schema";
-import { findThemesByText } from "@shared/categories";
+import { findThemesByText, CATEGORIES } from "@shared/categories";
 import { GoogleGenAI } from "@google/genai";
 
 const parser = new Parser();
@@ -122,7 +122,7 @@ async function verifySentinela(title: string, content: string): Promise<{
   }
 }
 
-async function generateAiSummary(title: string, content: string): Promise<string | null> {
+async function generateAiSummary(title: string, content: string): Promise<{ summary: string, themes: string[] } | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
       return null;
@@ -142,23 +142,43 @@ Título da notícia: ${title}
 
 Conteúdo original: ${content}
 
-Por favor, crie um resumo muito claro e simples desta notícia em português brasileiro. O resumo deve:
+# TAREFA 1: RESUMO
+Crie um resumo muito claro e simples desta notícia em português brasileiro. O resumo deve:
 - Ser fácil de entender por qualquer pessoa
 - Explicar o que aconteceu de forma objetiva
 - Ter no máximo 3 parágrafos curtos
 - Evitar jargões técnicos
 - Responder: O que? Onde? Quando? Por quê é importante?
 
-Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
+# TAREFA 2: CATEGORIZAÇÃO
+Analise a notícia e selecione até 3 temas da lista abaixo que sejam relevantes. Identifique o tema PRINCIPAL primeiro.
+Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Chuva Severa / Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo / Nevasca, Granizo, Maré Alta / Ressaca, Tempestade Solar / Geomagnética, Aurora Boreal, Eclipse, Asteroide / Meteoro, Lixo Espacial, Epidemia / Vírus, Incêndio, Poluição Tóxica / Radiação, Colapso Estrutural, Apagão, Acidente de Transporte, Ciberataque, Guerra / Conflito, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática.
+
+Retorne no seguinte formato JSON:
+{
+  "resumo": "seu resumo aqui",
+  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
+}
+
+Responda apenas com o JSON.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
 
-    return response.text || null;
+    const text = response.text || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const data = JSON.parse(jsonMatch[0]);
+      return {
+        summary: data.resumo,
+        themes: data.temas || []
+      };
+    }
+    return null;
   } catch (error) {
-    console.error("Error generating AI summary:", error);
+    console.error("Error generating AI summary and themes:", error);
     return null;
   }
 }
@@ -254,9 +274,20 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
       const createdItem = await storage.createNewsItem(newsItem);
       console.log(`Notícia aprovada e salva: ${title.slice(0, 50)}...`);
       
-      const aiSummary = await generateAiSummary(title, content);
-      if (aiSummary) {
-        await storage.updateNewsItemAiSummary(createdItem.id, aiSummary);
+      const aiResult = await generateAiSummary(title, content);
+      if (aiResult) {
+        // Find matching theme IDs for the themes returned by AI
+        const allThemes = CATEGORIES.flatMap(c => c.themes);
+        const newTagIds = aiResult.themes
+          .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
+          .filter(Boolean) as string[];
+        
+        // Merge with existing tags if needed, or replace
+        const finalTags = Array.from(new Set([...newsItem.tags, ...newTagIds]));
+        
+        await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
+        // We'll update the tags in the DB too
+        await storage.updateNewsItemTags(createdItem.id, finalTags);
       }
     }
 

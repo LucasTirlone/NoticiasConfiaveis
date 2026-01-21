@@ -36,6 +36,7 @@ export interface IStorage {
   findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined>;
   countNewsItems(): Promise<number>;
   updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void>;
+  updateNewsItemTags(id: string, tags: string[]): Promise<void>;
   
   // User Preferences
   getUserPreferences(id: string): Promise<UserPreferences | undefined>;
@@ -70,7 +71,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSource(source: InsertSource): Promise<Source> {
-    const [newSource] = await db.insert(sources).values([source]).returning();
+    const [newSource] = await db.insert(sources).values([source as any]).returning();
     return newSource;
   }
 
@@ -98,7 +99,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createNewsItem(item: InsertNewsItem): Promise<NewsItem> {
-    const [newItem] = await db.insert(newsItems).values([item]).returning();
+    const [newItem] = await db.insert(newsItems).values([item as any]).returning();
     return newItem;
   }
 
@@ -133,6 +134,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(newsItems.id, id));
   }
 
+  async updateNewsItemTags(id: string, tags: string[]): Promise<void> {
+    await db.update(newsItems)
+      .set({ tags })
+      .where(eq(newsItems.id, id));
+  }
+
   // User Preferences
   async getUserPreferences(id: string): Promise<UserPreferences | undefined> {
     const [prefs] = await db.select().from(userPreferences).where(eq(userPreferences.id, id));
@@ -147,7 +154,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getUserPreferences(prefs.id);
     
     if (existing) {
-      const updateData = {
+      const updateData: any = {
         ...(prefs.selectedTags !== undefined && { selectedTags: prefs.selectedTags }),
         ...(prefs.region !== undefined && { region: prefs.region }),
         ...(prefs.sensitivity !== undefined && { sensitivity: prefs.sensitivity as "all" | "critical_only" }),
@@ -163,7 +170,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     } else {
-      const [created] = await db.insert(userPreferences).values([prefs]).returning();
+      const [created] = await db.insert(userPreferences).values([prefs as any]).returning();
       return created;
     }
   }

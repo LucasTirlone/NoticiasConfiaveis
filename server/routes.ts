@@ -74,7 +74,8 @@ export async function registerRoutes(
       // Se o URL do site for igual ao RSS (ou estiver vazio), tenta extrair o base URL
       if (!validated.url || validated.url === validated.rssUrl) {
         try {
-          const url = new URL(validated.rssUrl);
+          const urlStr = validated.rssUrl || "";
+          const url = new URL(urlStr);
           let hostname = url.hostname;
           // Tenta limpar subdomínios comuns de feeds
           hostname = hostname.replace(/^(feeds|feed|rss|newsfeeds)\./, "www.");

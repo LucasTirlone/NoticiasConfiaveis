@@ -97,7 +97,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const paginatedFeed = filteredFeed.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
-  );
+  ).map(item => ({
+    ...item,
+    summary: item.aiSummary && item.aiSummary.length > 400 
+      ? item.aiSummary.substring(0, 400).trim() + "..." 
+      : (item.aiSummary || item.summary)
+  }));
 
   useEffect(() => {
     const loadPrefs = async () => {
