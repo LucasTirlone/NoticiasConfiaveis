@@ -2,15 +2,41 @@ import { useStore } from "@/lib/store";
 import { useRoute, Link } from "wouter";
 import { TrustBadge as BadgeComponent } from "@/components/TrustBadge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Share2, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Share2, ExternalLink, AlertTriangle, CheckCircle2, Sparkles, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useState, useEffect } from "react";
 
 export default function Detail() {
   const [, params] = useRoute("/news/:id");
   const { feed } = useStore();
   const item = feed.find(n => n.id === params?.id);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
+  useEffect(() => {
+    if (item && !aiSummary) {
+      setIsLoadingSummary(true);
+      fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          title: item.title, 
+          content: item.fullContent,
+          summary: item.summary
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          setAiSummary(data.summary || item.fullContent);
+        })
+        .catch(() => {
+          setAiSummary(item.fullContent);
+        })
+        .finally(() => setIsLoadingSummary(false));
+    }
+  }, [item?.id]);
 
   if (!item) return <div className="p-8 text-center text-xl">Notícia não encontrada.</div>;
 
@@ -64,19 +90,37 @@ export default function Detail() {
           )}
         </div>
 
-        {/* Content */}
+        {/* Link to Original */}
+        <div className="mt-2">
+          <a 
+            href={item.originalUrl || item.sources[0]?.url || "#"} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-flex items-center gap-2 text-primary hover:underline font-bold text-lg"
+            data-testid="link-ver-noticia-completa"
+          >
+            <ExternalLink className="w-5 h-5" />
+            Ver a notícia completa
+          </a>
+        </div>
+
+        {/* AI Summary */}
         <div className="prose prose-lg dark:prose-invert max-w-none">
-          <p className="text-xl md:text-2xl leading-relaxed font-medium text-foreground/90">
-            {item.summary}
-          </p>
           <div className="my-8 border-l-4 border-primary/30 pl-6 py-2 bg-primary/5 rounded-r-xl">
             <h3 className="text-primary font-bold text-lg mb-2 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              Explicação Simples
+              <Sparkles className="w-5 h-5" />
+              Resumo Simplificado
             </h3>
-            <p className="text-lg text-foreground/80">
-              {item.fullContent}
-            </p>
+            {isLoadingSummary ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Gerando resumo...</span>
+              </div>
+            ) : (
+              <p className="text-lg text-foreground/80">
+                {aiSummary || item.fullContent}
+              </p>
+            )}
           </div>
         </div>
 
@@ -92,15 +136,12 @@ export default function Detail() {
               <h4 className="font-semibold text-muted-foreground uppercase text-sm tracking-wider">Fontes Analisadas</h4>
               <ul className="space-y-2">
                 {item.sources.map(source => (
-                  <li key={source.id} className="flex items-center justify-between bg-background p-3 rounded-lg border">
+                  <li key={source.id} className="flex items-center bg-background p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${source.trusted ? 'bg-green-500' : 'bg-red-500'}`} />
                       <span className="font-medium">{source.name}</span>
                       <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full uppercase">{source.type}</span>
                     </div>
-                    <a href={item.originalUrl || source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center text-sm font-bold">
-                      Ver Original <ExternalLink className="ml-1 w-4 h-4" />
-                    </a>
                   </li>
                 ))}
               </ul>

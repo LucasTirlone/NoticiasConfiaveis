@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertSourceSchema, insertUserPreferencesSchema } from "@shared/schema";
 import { fetchAllRSS, fetchRSSFromSource } from "./services/rss-fetcher";
 import { z } from "zod";
+import { GoogleGenAI } from "@google/genai";
 
 // Helper to enrich news items with full source objects
 async function enrichNewsItems(items: any[]) {
@@ -164,6 +165,54 @@ export async function registerRoutes(
       res.json({ success: true, message: "Source refreshed successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh source" });
+    }
+  });
+
+  // ===== AI SUMMARIZATION =====
+  app.post("/api/summarize", async (req, res) => {
+    try {
+      const { title, content, summary } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
+
+      const prompt = `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
+
+Título da notícia: ${title}
+
+Conteúdo original: ${content}
+
+${summary ? `Resumo atual: ${summary}` : ""}
+
+Por favor, crie um resumo muito claro e simples desta notícia em português brasileiro. O resumo deve:
+- Ser fácil de entender por qualquer pessoa
+- Explicar o que aconteceu de forma objetiva
+- Ter no máximo 3 parágrafos curtos
+- Evitar jargões técnicos
+- Responder: O que? Onde? Quando? Por quê é importante?
+
+Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+
+      const aiSummary = response.text || content;
+      
+      res.json({ summary: aiSummary });
+    } catch (error) {
+      console.error("Error generating AI summary:", error);
+      res.status(500).json({ error: "Failed to generate summary", summary: req.body.content });
     }
   });
 
