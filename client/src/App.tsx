@@ -1,29 +1,51 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Switch, Route, useLocation } from "wouter";
+import { StoreProvider, useStore } from "@/lib/store";
+import { Layout } from "@/components/Layout";
+import Onboarding from "@/pages/onboarding";
+import Feed from "@/pages/feed";
+import Detail from "@/pages/detail";
+import Sources from "@/pages/sources";
 import NotFound from "@/pages/not-found";
+import { Toaster } from "@/components/ui/toaster";
+import { useEffect } from "react";
 
-function Router() {
+// Wrapper to handle redirection logic
+function AppContent() {
+  const { preferences } = useStore();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    // If onboarding is not complete, redirect to onboarding
+    // Unless we are already there
+    if (!preferences.onboardingCompleted && location !== "/onboarding") {
+      setLocation("/onboarding");
+    }
+  }, [preferences.onboardingCompleted, location, setLocation]);
+
+  // Layout is hidden on onboarding page for immersion
+  if (location === "/onboarding") {
+    return <Route path="/onboarding" component={Onboarding} />;
+  }
+
   return (
-    <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
-    </Switch>
+    <Layout>
+      <Switch>
+        <Route path="/" component={Feed} />
+        <Route path="/news/:id" component={Detail} />
+        <Route path="/sources" component={Sources} />
+        <Route path="/settings" component={() => <div className="p-8 text-center text-xl">Configurações (Use o ícone 'A' no topo)</div>} />
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <StoreProvider>
+      <AppContent />
+      <Toaster />
+    </StoreProvider>
   );
 }
 
