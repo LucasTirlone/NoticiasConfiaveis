@@ -98,7 +98,7 @@ export default function Detail() {
                       <span className="font-medium">{source.name}</span>
                       <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full uppercase">{source.type}</span>
                     </div>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center text-sm font-bold">
+                    <a href={item.originalUrl || source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center text-sm font-bold">
                       Ver Original <ExternalLink className="ml-1 w-4 h-4" />
                     </a>
                   </li>
