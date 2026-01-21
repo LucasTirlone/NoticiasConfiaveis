@@ -33,9 +33,9 @@ A notícia usa os termos de forma literal?
 * **APROVAR:** Apenas eventos físicos e reais.
 
 ### PASSO 2: FILTRO DE MAGNITUDE (Macro vs. Micro)
-O evento tem escala relevante para um alerta público?
-* **REJEITAR (Micro/Local):** Incêndio em uma única casa, acidente de carro comum, chuva leve, crime urbano comum, briga de bar.
-* **APROVAR (Macro/Regional):** Incêndios florestais, enchentes que param cidades, acidentes com múltiplas vítimas, eventos que afetam infraestrutura (aeroportos, represas, hospitais).
+O evento tem escala relevante para um alerta público global ou regional?
+* **REJEITAR (Micro/Local/Crime Comum):** Incêndio em uma única casa, acidente de carro comum, chuva leve, briga de bar, **OPERAÇÕES POLICIAIS DE ROTINA, CRIMES URBANOS (assaltos, grupos armados locais), PRISÕES INDIVIDUAIS**.
+* **APROVAR (Macro/Regional):** Incêndios florestais, enchentes que param cidades, acidentes com múltiplas vítimas, eventos que afetam infraestrutura (aeroportos, represas, hospitais), CONFLITOS ARMADOS DE ESCALA NACIONAL OU TERRORISMO CONFIRMADO.
 
 ### PASSO 3: FILTRO GEOPOLÍTICO (Ação vs. Retórica)
 Se o tema for Geopolítica, separe o fato do discurso.
@@ -111,7 +111,17 @@ async function verifySentinela(title: string, content: string): Promise<{
     });
 
     const text = response.text || "";
-    console.log(`[Sentinela Debug] Resposta para "${title.slice(0, 50)}...":`, text);
+    console.log(`\n--- INICIO DEBUG SENTINELA ---`);
+    console.log(`Notícia: ${title.slice(0, 80)}...`);
+    console.log(`Resposta Bruta: ${text}`);
+    console.log(`--- FIM DEBUG SENTINELA ---\n`);
+    
+    // Verificação extra de segurança: Se a resposta não contém JSON ou contém recusa, rejeitar
+    if (!text.includes('{')) {
+      console.log(`[Sentinela] Rejeitado por falta de formato JSON na resposta.`);
+      return { aprovado: false };
+    }
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
@@ -152,7 +162,9 @@ Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muit
 - Responda: O que? Onde? Quando? Por quê é importante?
 
 # TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam relevantes. Identifique o tema PRINCIPAL primeiro.
+Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto.
+**ATENÇÃO CRÍTICA**: Se a notícia não tratar de desastres, crises globais ou fenômenos científicos, não tente forçar uma categoria. Escolha apenas temas que realmente descrevam o fato.
+
 Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Chuva Severa / Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo / Nevasca, Granizo, Maré Alta / Ressaca, Tempestade Solar / Geomagnética, Aurora Boreal, Eclipse, Asteroide / Meteoro, Lixo Espacial, Epidemia / Vírus, Incêndio, Poluição Tóxica / Radiação, Colapso Estrutural, Apagão, Acidente de Transporte, Ciberataque, Guerra / Conflito, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática.
 
 Retorne no seguinte formato JSON:
@@ -170,7 +182,10 @@ Responda apenas com o JSON.`;
     });
 
     const text = response.text || "";
-    console.log(`[Categorização Debug] Resposta para "${title.slice(0, 50)}...":`, text);
+    console.log(`\n--- INICIO DEBUG CATEGORIZACAO ---`);
+    console.log(`Notícia: ${title.slice(0, 80)}...`);
+    console.log(`Resposta Bruta: ${text}`);
+    console.log(`--- FIM DEBUG CATEGORIZACAO ---\n`);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const data = JSON.parse(jsonMatch[0]);
@@ -298,6 +313,13 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
           .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
           .filter(Boolean) as string[];
         
+        // Verificação final: se a IA aprovou mas a categorização não encontrou temas válidos, 
+        // ou se o tema for suspeito (ex: Vulcão para notícia que não contém vulcão), podemos filtrar aqui.
+        if (newTagIds.length === 0) {
+          console.log(`[Categorização] Notícia "${title.slice(0, 50)}..." rejeitada por falta de temas válidos.`);
+          continue;
+        }
+
         const finalTags = Array.from(new Set([...newsItem.tags, ...newTagIds]));
         
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
