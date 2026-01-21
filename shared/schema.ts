@@ -40,6 +40,7 @@ export type Source = typeof sources.$inferSelect;
 export const newsItems = pgTable("news_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
+  originalTitle: text("original_title"),
   summary: text("summary").notNull(),
   fullContent: text("full_content").notNull(),
   aiSummary: text("ai_summary"),

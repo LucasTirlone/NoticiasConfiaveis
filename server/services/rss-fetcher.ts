@@ -270,6 +270,7 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
 
       const newsItem: InsertNewsItem = {
         title,
+        originalTitle: title,
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
         fullContent: content.slice(0, 1000),
         tags: foundThemes.map(t => t.id),

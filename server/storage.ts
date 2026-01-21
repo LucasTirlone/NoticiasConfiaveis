@@ -33,7 +33,7 @@ export interface IStorage {
   getNewsItem(id: string): Promise<NewsItem | undefined>;
   createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
   getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
-  findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined>;
+  findNewsItemByUrlOrTitle(url: string, originalTitle: string): Promise<NewsItem | undefined>;
   countNewsItems(): Promise<number>;
   updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void>;
   updateNewsItemTags(id: string, tags: string[]): Promise<void>;
@@ -117,9 +117,9 @@ export class DatabaseStorage implements IStorage {
     return filtered.slice(0, limit);
   }
 
-  async findNewsItemByUrlOrTitle(url: string, title: string): Promise<NewsItem | undefined> {
+  async findNewsItemByUrlOrTitle(url: string, originalTitle: string): Promise<NewsItem | undefined> {
     const [item] = await db.select().from(newsItems).where(
-      or(eq(newsItems.originalUrl, url), eq(newsItems.title, title))
+      or(eq(newsItems.originalUrl, url), eq(newsItems.originalTitle, originalTitle))
     );
     return item;
   }

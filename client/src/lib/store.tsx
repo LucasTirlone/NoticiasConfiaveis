@@ -12,6 +12,7 @@ export interface UserPreferences extends DBUserPreferences {}
 export interface NewsItem {
   id: string;
   title: string;
+  originalTitle?: string | null;
   summary: string;
   fullContent: string;
   aiSummary?: string | null;
