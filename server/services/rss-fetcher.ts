@@ -1,5 +1,8 @@
 import Parser from "rss-parser";
 import { storage } from "../storage";
+import { db } from "../../db";
+import { newsItems } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import type { InsertNewsItem } from "@shared/schema";
 import { findThemesByText, CATEGORIES } from "@shared/categories";
 import { GoogleGenAI } from "@google/genai";
@@ -156,7 +159,7 @@ Conteúdo original: ${content}
 # TAREFA 1: TRADUÇÃO E RESUMO
 Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muito claro e simples.
 - O título traduzido deve ser impactante e fiel ao original.
-- O resumo deve ser fácil de entender por qualquer pessoa, explicando o que aconteceu de forma objetiva.
+- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
 - Tenha no máximo 3 parágrafos curtos.
 - Evite jargões técnicos.
 - Responda: O que? Onde? Quando? Por quê é importante?
@@ -287,10 +290,10 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       }
 
       const newsItem: InsertNewsItem = {
-        title,
+        title: verification.tag_exibicao ? `${verification.tag_exibicao}: ${title}` : title,
         originalTitle: title,
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
-        fullContent: content.slice(0, 1000),
+        fullContent: content,
         tags: foundThemes.map(t => t.id),
         timestamp: isDateValid ? pubDate : new Date(),
         reliability,
@@ -325,7 +328,12 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
 
         const finalTags = Array.from(new Set([...newsItem.tags, ...newTagIds]));
         
+        // Use the AI summary as the full content for the detailed view
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
+        
+        // Update full content to be the complete AI summary
+        await db.update(newsItems).set({ fullContent: aiResult.summary }).where(eq(newsItems.id, createdItem.id));
+
         await storage.updateNewsItemTags(createdItem.id, finalTags);
         
         if (aiResult.translatedTitle) {

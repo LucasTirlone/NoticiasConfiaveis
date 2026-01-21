@@ -37,7 +37,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
             {item.title}
           </h3>
           <p className="text-base text-foreground/80 line-clamp-3 leading-relaxed">
-            {item.summary}
+            {item.summary.length > 200 ? item.summary.slice(0, 200) + "..." : item.summary}
           </p>
         </div>
 
