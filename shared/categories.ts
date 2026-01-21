@@ -52,52 +52,52 @@ export const CATEGORIES: Category[] = [
       {
         id: "terremoto",
         name: "Terremoto",
-        keywords: ["terremoto", "sismo", "tremor de terra", "abalo sísmico", "magnitude", "Richter", "epicentro", "earthquake"]
+        keywords: ["terremoto", "sismo", "tremor de terra", "abalo sísmico", "magnitude", "Richter", "epicentro", "earthquake", "quake", "seismic", "temblor"]
       },
       {
         id: "tsunami",
         name: "Tsunami",
-        keywords: ["tsunami", "maremoto", "alerta de tsunami", "onda gigante", "recuo do mar"]
+        keywords: ["tsunami", "maremoto", "alerta de tsunami", "onda gigante", "recuo do mar", "tidal wave"]
       },
       {
         id: "vulcao",
         name: "Vulcão",
-        keywords: ["vulcão", "erupção vulcânica", "fluxo piroclástico", "nuvem de cinzas", "lava", "atividade vulcânica", "volcano", "eruption"]
+        keywords: ["vulcão", "erupção vulcânica", "fluxo piroclástico", "nuvem de cinzas", "lava", "atividade vulcânica", "volcano", "eruption", "magma", "ash cloud"]
       },
       {
         id: "ciclone_tornado",
         name: "Ciclone / Tornado",
-        keywords: ["ciclone", "tornado", "furacão", "tufão", "tempestade tropical", "vendaval", "tromba d'água", "hurricane", "typhoon", "cyclone"]
+        keywords: ["ciclone", "tornado", "furacão", "tufão", "tempestade tropical", "vendaval", "tromba d'água", "hurricane", "typhoon", "cyclone", "tropical storm", "twister", "storm surge"]
       },
       {
         id: "chuva_enchente",
         name: "Chuva Forte / Enchente",
-        keywords: ["chuva forte", "enchente", "alagamento", "inundação", "transbordamento de rio", "tempestade severa", "acumulado de chuva", "flood", "flooding", "heavy rain"]
+        keywords: ["chuva forte", "enchente", "alagamento", "inundação", "transbordamento de rio", "tempestade severa", "acumulado de chuva", "flood", "flooding", "heavy rain", "deluge", "downpour"]
       },
       {
         id: "deslizamento",
         name: "Deslizamento",
-        keywords: ["deslizamento", "queda de barreira", "desmoronamento", "soterramento", "deslizamento de terra", "landslide", "mudslide"]
+        keywords: ["deslizamento", "queda de barreira", "desmoronamento", "soterramento", "deslizamento de terra", "landslide", "mudslide", "rockfall"]
       },
       {
         id: "onda_calor_seca",
         name: "Onda de Calor / Seca",
-        keywords: ["onda de calor", "seca extrema", "estiagem", "recorde de temperatura", "falta de água", "heat wave", "drought"]
+        keywords: ["onda de calor", "seca extrema", "estiagem", "recorde de temperatura", "falta de água", "heat wave", "drought", "extreme heat", "water shortage"]
       },
       {
         id: "frio_nevasca",
         name: "Frio Extremo / Nevasca",
-        keywords: ["frio extremo", "nevasca", "geada negra", "tempestade de inverno", "congelamento", "frente fria intensa", "neve", "blizzard", "freezing"]
+        keywords: ["frio extremo", "nevasca", "geada negra", "tempestade de inverno", "congelamento", "frente fria intensa", "neve", "blizzard", "freezing", "snowstorm", "ice storm"]
       },
       {
         id: "granizo",
         name: "Granizo",
-        keywords: ["granizo", "chuva de pedra", "granizo severo", "danos por granizo", "hail"]
+        keywords: ["granizo", "chuva de pedra", "granizo severo", "danos por granizo", "hail", "hailstone"]
       },
       {
         id: "mare_alta",
         name: "Maré Alta",
-        keywords: ["maré alta", "ressaca", "avanço do mar", "erosão costeira", "storm surge", "high tide"]
+        keywords: ["maré alta", "ressaca", "avanço do mar", "erosão costeira", "storm surge", "high tide", "coastal flooding"]
       }
     ]
   },
@@ -109,17 +109,17 @@ export const CATEGORIES: Category[] = [
       {
         id: "epidemia_virus",
         name: "Epidemia / Vírus",
-        keywords: ["epidemia", "vírus", "surto", "pandemia", "contágio", "OMS alerta", "novo vírus", "patógeno", "quarentena", "febre hemorrágica", "epidemic", "virus", "outbreak"]
+        keywords: ["epidemia", "vírus", "surto", "pandemia", "contágio", "OMS alerta", "novo vírus", "patógeno", "quarentena", "febre hemorrágica", "epidemic", "virus", "outbreak", "infection", "public health emergency"]
       },
       {
         id: "incendio",
         name: "Incêndio",
-        keywords: ["incêndio", "incêndio florestal", "queimada", "fogo em mata", "incêndio de grandes proporções", "wildfire", "fire"]
+        keywords: ["incêndio", "incêndio florestal", "queimada", "fogo em mata", "incêndio de grandes proporções", "wildfire", "fire", "bushfire", "blaze"]
       },
       {
         id: "poluicao_radiacao",
         name: "Poluição / Radiação",
-        keywords: ["poluição", "radiação", "vazamento nuclear", "radioativo", "Césio", "vazamento de óleo", "maré negra", "nuvem tóxica", "qualidade do ar perigosa", "pollution", "radiation", "nuclear"]
+        keywords: ["poluição", "radiação", "vazamento nuclear", "radioativo", "Césio", "vazamento de óleo", "maré negra", "nuvem tóxica", "qualidade do air perigosa", "pollution", "radiation", "nuclear", "toxic leak", "contamination"]
       }
     ]
   },
@@ -158,27 +158,27 @@ export const CATEGORIES: Category[] = [
       {
         id: "conflito_guerra",
         name: "Conflito Armado / Guerra",
-        keywords: ["guerra", "declaração de guerra", "invasão", "incursão militar", "ataque aéreo", "bombardeio", "mísseis balísticos", "troca de tiros na fronteira", "cessar-fogo", "zona de exclusão aérea", "war", "invasion", "airstrike"]
+        keywords: ["guerra", "declaração de guerra", "invasão", "incursão militar", "ataque aéreo", "bombardeio", "mísseis balísticos", "troca de tiros na fronteira", "cessar-fogo", "zona de exclusão aérea", "war", "invasion", "airstrike", "missile strike", "military operation", "fighting", "combat"]
       },
       {
         id: "golpe_estado",
         name: "Golpe de Estado",
-        keywords: ["golpe militar", "tentativa de golpe", "lei marcial", "estado de sítio", "queda do governo", "renúncia forçada", "tomada do palácio", "junta militar", "coup"]
+        keywords: ["golpe militar", "tentativa de golpe", "lei marcial", "estado de sítio", "queda do governo", "renúncia forçada", "tomada do palácio", "junta militar", "coup", "overthrow", "uprising"]
       },
       {
         id: "terrorismo",
         name: "Terrorismo",
-        keywords: ["terrorismo", "atentado terrorista", "carro-bomba", "homem-bomba", "ataque suicida", "sequestro em massa", "célula extremista", "ataque coordenado", "terrorist attack"]
+        keywords: ["terrorismo", "atentado terrorista", "carro-bomba", "homem-bomba", "ataque suicida", "sequestro em massa", "célula extremista", "ataque coordenado", "terrorist attack", "bombing", "explosion"]
       },
       {
         id: "ameaca_nuclear",
         name: "Ameaça Nuclear",
-        keywords: ["ameaça nuclear", "teste nuclear", "enriquecimento de urânio", "ogiva nuclear", "armas químicas", "armas biológicas", "ICBM", "nuclear threat"]
+        keywords: ["ameaça nuclear", "teste nuclear", "enriquecimento de urânio", "ogiva nuclear", "armas químicas", "armas biológicas", "ICBM", "nuclear threat", "atomic weapon"]
       },
       {
         id: "crise_diplomatica",
         name: "Crise Diplomática Grave",
-        keywords: ["crise diplomática", "rompimento de relações diplomáticas", "expulsão de embaixadores", "fechamento de fronteira", "sanções econômicas severas", "embargo total", "mobilização de tropas", "diplomatic crisis"]
+        keywords: ["crise diplomática", "rompimento de relações diplomáticas", "expulsão de embaixadores", "fechamento de fronteira", "sanções econômicas severas", "embargo total", "mobilização de tropas", "diplomatic crisis", "sanctions", "embargo"]
       }
     ]
   }
