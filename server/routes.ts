@@ -69,6 +69,20 @@ export async function registerRoutes(
   app.post("/api/sources", async (req, res) => {
     try {
       const validated = insertSourceSchema.parse(req.body);
+      
+      // Se o URL do site for igual ao RSS (ou estiver vazio), tenta extrair o base URL
+      if (!validated.url || validated.url === validated.rssUrl) {
+        try {
+          const url = new URL(validated.rssUrl);
+          let hostname = url.hostname;
+          // Tenta limpar subdomínios comuns de feeds
+          hostname = hostname.replace(/^(feeds|feed|rss|newsfeeds)\./, "www.");
+          validated.url = `${url.protocol}//${hostname}`;
+        } catch (e) {
+          // Mantém o original se falhar
+        }
+      }
+
       const source = await storage.createSource(validated);
       res.status(201).json(source);
     } catch (error) {
