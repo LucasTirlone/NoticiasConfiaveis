@@ -106,11 +106,12 @@ async function verifySentinela(title: string, content: string): Promise<{
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
     });
 
     const text = response.text || "";
+    console.log(`[Sentinela Debug] Resposta para "${title.slice(0, 50)}...":`, text);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
@@ -164,11 +165,12 @@ Retorne no seguinte formato JSON:
 Responda apenas com o JSON.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: prompt,
     });
 
     const text = response.text || "";
+    console.log(`[Categorização Debug] Resposta para "${title.slice(0, 50)}...":`, text);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const data = JSON.parse(jsonMatch[0]);
