@@ -211,7 +211,8 @@ export async function fetchRSSFromSource(sourceId: string): Promise<void> {
         continue;
       }
       
-      const content = item.contentSnippet || item.content || item.summary || "";
+      const rawContent = item.contentSnippet || item.content || item.summary || "";
+      const content = rawContent.replace(/<[^>]*>?/gm, '').trim();
       
       const foundThemes = findThemesByText(`${title} ${content}`);
       if (foundThemes.length === 0) {

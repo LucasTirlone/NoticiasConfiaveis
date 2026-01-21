@@ -36,7 +36,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
             {isCritical && <AlertTriangle className="inline w-6 h-6 mr-2 mb-1" />}
             {item.title}
           </h3>
-          <p className="text-base text-muted-foreground line-clamp-3 leading-relaxed">
+          <p className="text-base text-foreground/80 line-clamp-3 leading-relaxed">
             {item.summary}
           </p>
         </div>
