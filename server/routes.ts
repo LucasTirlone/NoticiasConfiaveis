@@ -29,12 +29,14 @@ export async function registerRoutes(
   app.get("/api/news", async (req, res) => {
     try {
       const tags = req.query.tags ? String(req.query.tags).split(",") : null;
+      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 200;
+      const safeLimit = Math.min(Math.max(limit, 1), 500); // Entre 1 e 500
       
       let items;
       if (tags && tags.length > 0) {
-        items = await storage.getNewsItemsByTags(tags, 50);
+        items = await storage.getNewsItemsByTags(tags, safeLimit);
       } else {
-        items = await storage.getAllNewsItems(50);
+        items = await storage.getAllNewsItems(safeLimit);
       }
       
       const enriched = await enrichNewsItems(items);
@@ -70,6 +72,16 @@ export async function registerRoutes(
   app.post("/api/sources", async (req, res) => {
     try {
       const validated = insertSourceSchema.parse(req.body);
+      
+      // Verificar se já existe uma fonte com o mesmo RSS URL
+      if (validated.rssUrl) {
+        const existingSource = await storage.findSourceByRssUrl(validated.rssUrl);
+        if (existingSource) {
+          return res.status(400).json({ 
+            error: `Já existe uma fonte com este RSS: "${existingSource.name}". Cada fonte deve ter um RSS único.` 
+          });
+        }
+      }
       
       // Se o URL do site for igual ao RSS (ou estiver vazio), tenta extrair o base URL
       if (!validated.url || validated.url === validated.rssUrl) {

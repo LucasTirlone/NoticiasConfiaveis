@@ -304,7 +304,8 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
         continue;
       }
       
-      const existing = await storage.findNewsItemByUrlOrTitle(originalUrl, title);
+      // Verificar duplicata pelo título original OU URL original
+      const existing = await storage.findNewsItemByOriginalTitleOrUrl(title, originalUrl);
       if (existing) {
         continue;
       }
@@ -355,23 +356,27 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       localCount++;
       if (onProgress) onProgress({ count: localCount });
       
-      const aiResult = await generateAiSummary(title, content, source.name);
-      if (aiResult) {
+      // Gerar resumo com IA - com retry em caso de falha
+      let aiResult = await generateAiSummary(title, content, source.name);
+      
+      // Retry uma vez se falhar
+      if (!aiResult) {
+        console.log(`[AI] Retry para: ${title.slice(0, 50)}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        aiResult = await generateAiSummary(title, content, source.name);
+      }
+      
+      if (aiResult && aiResult.summary) {
         const allThemes = CATEGORIES.flatMap(c => c.themes);
         const newTagIds = aiResult.themes
           .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
           .filter(Boolean) as string[];
         
-        // Verificação final: se a IA aprovou mas a categorização não encontrou temas válidos, 
-        // ou se o tema for suspeito (ex: Vulcão para notícia que não contém vulcão), podemos filtrar aqui.
-        if (newTagIds.length === 0) {
-          console.log(`[Categorização] Notícia "${title.slice(0, 50)}..." rejeitada por falta de temas válidos.`);
-          continue;
-        }
-
-        const finalTags = Array.from(new Set([...newsItem.tags, ...newTagIds]));
+        const finalTags = newTagIds.length > 0 
+          ? Array.from(new Set([...newsItem.tags, ...newTagIds]))
+          : newsItem.tags;
         
-        // Use the AI summary as the full content for the detailed view
+        // Sempre atualizar o ai_summary com o resumo da IA
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
         
         // Update full content to be the complete AI summary
@@ -381,6 +386,44 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
         
         if (aiResult.translatedTitle) {
           await storage.updateNewsItemTitle(createdItem.id, aiResult.translatedTitle);
+        }
+      } else {
+        // Fallback: tentar uma tradução simples usando a mesma IA
+        console.log(`[AI] Usando fallback de tradução para: ${title.slice(0, 50)}...`);
+        
+        // Se a fonte é portuguesa, usar o conteúdo original
+        const isPortuguese = isPortugueseSource(source.name);
+        if (isPortuguese) {
+          const fallbackSummary = content.slice(0, 500) + (content.length > 500 ? "..." : "");
+          await storage.updateNewsItemAiSummary(createdItem.id, fallbackSummary);
+        } else {
+          // Tentar tradução básica como último recurso
+          try {
+            const ai = new GoogleGenAI({
+              apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
+              httpOptions: {
+                apiVersion: "",
+                baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL!,
+              },
+            });
+            
+            const translatePrompt = `Traduza este texto para português brasileiro de forma simples e direta (máximo 300 palavras):\n\n${content.slice(0, 800)}`;
+            const translateResponse = await ai.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: translatePrompt,
+            });
+            
+            const translatedText = translateResponse.text || "";
+            if (translatedText && translatedText.length > 50) {
+              await storage.updateNewsItemAiSummary(createdItem.id, translatedText);
+            } else {
+              // Marcar como pendente de tradução
+              await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
+            }
+          } catch (translateError) {
+            // Último recurso: marcar como pendente de tradução
+            await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
+          }
         }
       }
     }
@@ -394,11 +437,23 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
   }
 }
 
-export async function fetchAllRSS(): Promise<void> {
-  const allSources = await storage.getAllSources();
-  const sourcesWithRSS = allSources.filter(s => s.rssUrl);
+export async function fetchAllRSS(): Promise<boolean> {
+  // Tentar adquirir o lock distribuído via PostgreSQL
+  const lockAcquired = await storage.acquireRefreshLock();
+  if (!lockAcquired) {
+    console.log("[RSS] Atualização já em andamento por outra instância, pulando...");
+    return false;
+  }
   
-  for (const source of sourcesWithRSS) {
-    await fetchRSSFromSource(source.id);
+  try {
+    const allSources = await storage.getAllSources();
+    const sourcesWithRSS = allSources.filter(s => s.rssUrl);
+    
+    for (const source of sourcesWithRSS) {
+      await fetchRSSFromSource(source.id);
+    }
+    return true;
+  } finally {
+    await storage.releaseRefreshLock();
   }
 }

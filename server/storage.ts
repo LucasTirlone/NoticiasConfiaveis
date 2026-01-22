@@ -10,10 +10,11 @@ import {
   users,
   sources,
   newsItems,
-  userPreferences
+  userPreferences,
+  systemLocks
 } from "@shared/schema";
 import { db } from "../db";
-import { eq, desc, or } from "drizzle-orm";
+import { eq, desc, or, and, isNotNull, ne } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -27,17 +28,22 @@ export interface IStorage {
   createSource(source: InsertSource): Promise<Source>;
   deleteSource(id: string): Promise<void>;
   updateSourceLastFetched(id: string): Promise<void>;
+  findSourceByRssUrl(rssUrl: string, excludeId?: string): Promise<Source | undefined>;
   
   // News Items
   getAllNewsItems(limit?: number): Promise<NewsItem[]>;
   getNewsItem(id: string): Promise<NewsItem | undefined>;
   createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
   getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
-  findNewsItemByUrlOrTitle(url: string, originalTitle: string): Promise<NewsItem | undefined>;
+  findNewsItemByOriginalTitleOrUrl(originalTitle: string, originalUrl: string): Promise<NewsItem | undefined>;
   countNewsItems(): Promise<number>;
   updateNewsItemAiSummary(id: string, aiSummary: string): Promise<void>;
   updateNewsItemTags(id: string, tags: string[]): Promise<void>;
   updateNewsItemTitle(id: string, title: string): Promise<void>;
+  
+  // Refresh Lock (for distributed locking)
+  acquireRefreshLock(): Promise<boolean>;
+  releaseRefreshLock(): Promise<void>;
   
   // User Preferences
   getUserPreferences(id: string): Promise<UserPreferences | undefined>;
@@ -86,8 +92,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sources.id, id));
   }
 
+  async findSourceByRssUrl(rssUrl: string, excludeId?: string): Promise<Source | undefined> {
+    if (!rssUrl) return undefined;
+    
+    const conditions = [eq(sources.rssUrl, rssUrl)];
+    if (excludeId) {
+      conditions.push(ne(sources.id, excludeId));
+    }
+    
+    const [source] = await db.select().from(sources).where(and(...conditions));
+    return source;
+  }
+
   // News Items
-  async getAllNewsItems(limit: number = 50): Promise<NewsItem[]> {
+  async getAllNewsItems(limit: number = 200): Promise<NewsItem[]> {
     return await db.select()
       .from(newsItems)
       .orderBy(desc(newsItems.timestamp))
@@ -117,10 +135,21 @@ export class DatabaseStorage implements IStorage {
     return filtered.slice(0, limit);
   }
 
-  async findNewsItemByUrlOrTitle(url: string, originalTitle: string): Promise<NewsItem | undefined> {
-    const [item] = await db.select().from(newsItems).where(
-      or(eq(newsItems.originalUrl, url), eq(newsItems.originalTitle, originalTitle))
-    );
+  async findNewsItemByOriginalTitleOrUrl(originalTitle: string, originalUrl: string): Promise<NewsItem | undefined> {
+    // Verifica por título original (normalizado) OU por URL original
+    const conditions = [];
+    
+    if (originalTitle) {
+      conditions.push(eq(newsItems.originalTitle, originalTitle));
+    }
+    
+    if (originalUrl) {
+      conditions.push(eq(newsItems.originalUrl, originalUrl));
+    }
+    
+    if (conditions.length === 0) return undefined;
+    
+    const [item] = await db.select().from(newsItems).where(or(...conditions));
     return item;
   }
 
@@ -179,6 +208,65 @@ export class DatabaseStorage implements IStorage {
     } else {
       const [created] = await db.insert(userPreferences).values([prefs as any]).returning();
       return created;
+    }
+  }
+
+  // Refresh Lock - usando tabela de lock para coordenação entre instâncias
+  private readonly REFRESH_LOCK_ID = "rss_refresh";
+  private readonly LOCK_DURATION_MS = 10 * 60 * 1000; // 10 minutos
+  private instanceId = `instance_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  
+  async acquireRefreshLock(): Promise<boolean> {
+    try {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + this.LOCK_DURATION_MS);
+      
+      // Operação atômica: INSERT ... ON CONFLICT DO UPDATE ONLY IF EXPIRED
+      // Isso garante que apenas uma instância consiga o lock mesmo em condição de corrida
+      const result = await db.execute(`
+        INSERT INTO system_locks (id, locked_at, locked_by, expires_at)
+        VALUES ('${this.REFRESH_LOCK_ID}', NOW(), '${this.instanceId}', NOW() + INTERVAL '10 minutes')
+        ON CONFLICT (id) DO UPDATE 
+        SET 
+          locked_at = NOW(),
+          locked_by = '${this.instanceId}',
+          expires_at = NOW() + INTERVAL '10 minutes'
+        WHERE system_locks.expires_at < NOW() OR system_locks.locked_by IS NULL
+        RETURNING id, locked_by
+      `);
+      
+      const rows = result.rows as Array<{ id: string; locked_by: string }>;
+      
+      // Verifica se conseguimos o lock (retornou nossa instância)
+      if (rows.length > 0 && rows[0].locked_by === this.instanceId) {
+        console.log(`[DB Lock] Lock adquirido por ${this.instanceId}`);
+        return true;
+      }
+      
+      // Lock não adquirido - verificar quem tem
+      const existingLock = await db.select().from(systemLocks).where(eq(systemLocks.id, this.REFRESH_LOCK_ID));
+      if (existingLock.length > 0) {
+        console.log(`[DB Lock] Lock em uso por ${existingLock[0].lockedBy} até ${existingLock[0].expiresAt}`);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("[DB Lock] Erro ao tentar adquirir lock:", error);
+      return false;
+    }
+  }
+  
+  async releaseRefreshLock(): Promise<void> {
+    try {
+      // Só libera se for o dono do lock (operação atômica)
+      await db.execute(`
+        UPDATE system_locks 
+        SET locked_at = NULL, locked_by = NULL, expires_at = NULL
+        WHERE id = '${this.REFRESH_LOCK_ID}' AND locked_by = '${this.instanceId}'
+      `);
+      console.log(`[DB Lock] Lock liberado por ${this.instanceId}`);
+    } catch (error) {
+      console.error("[DB Lock] Erro ao liberar lock:", error);
     }
   }
 }

@@ -2,9 +2,10 @@ import { storage } from "./storage";
 import type { InsertSource } from "@shared/schema";
 
 export async function seedInitialData() {
-  // Get existing sources
+  // Get existing sources - check both name and RSS URL to prevent duplicates
   const existing = await storage.getAllSources();
   const existingNames = new Set(existing.map(s => s.name));
+  const existingRssUrls = new Set(existing.map(s => s.rssUrl).filter(Boolean));
 
   const initialSources: InsertSource[] = [
     // --- ESPAÇO E ASTRONOMIA ---
@@ -253,13 +254,22 @@ export async function seedInitialData() {
 
   let addedCount = 0;
   for (const source of initialSources) {
+    // Verificar por nome
     if (existingNames.has(source.name)) {
+      continue;
+    }
+    // Verificar por RSS URL (impedir duplicatas)
+    if (source.rssUrl && existingRssUrls.has(source.rssUrl)) {
+      console.log(`⚠ RSS duplicado ignorado: ${source.rssUrl}`);
       continue;
     }
     try {
       await storage.createSource(source);
       console.log(`✓ Created source: ${source.name}`);
       addedCount++;
+      // Adicionar aos sets para evitar duplicatas na mesma execução
+      existingNames.add(source.name);
+      if (source.rssUrl) existingRssUrls.add(source.rssUrl);
     } catch (error) {
       console.error(`✗ Failed to create source ${source.name}:`, error);
     }

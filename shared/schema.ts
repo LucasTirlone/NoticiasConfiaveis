@@ -23,7 +23,7 @@ export const sources = pgTable("sources", {
   url: text("url").notNull(),
   type: text("type").notNull().$type<"official" | "media" | "blog">(),
   trusted: boolean("trusted").notNull().default(true),
-  rssUrl: text("rss_url"),
+  rssUrl: text("rss_url").unique(),
   lastFetched: timestamp("last_fetched"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -82,5 +82,13 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).o
 
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 export type UserPreferences = typeof userPreferences.$inferSelect;
+
+// Lock table for distributed coordination
+export const systemLocks = pgTable("system_locks", {
+  id: varchar("id").primaryKey(),
+  lockedAt: timestamp("locked_at"),
+  lockedBy: text("locked_by"),
+  expiresAt: timestamp("expires_at"),
+});
 
 export * from "./models/chat";
