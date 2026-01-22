@@ -1,0 +1,93 @@
+Space.com – NASA, Espaço e Astronomia: RSS feed oficial do Space.com, que traz as últimas notícias sobre explorações espaciais, descobertas astronômicas e fenômenos cósmicos. (URL do feed: https://www.space.com/feeds.xml)
+
+Universe Today – Space & Astronomy News: Feed de atualizações diárias do site Universe Today, conhecido por cobrir notícias de astronomia e missões espaciais em linguagem acessível. (URL do feed: https://www.universetoday.com/feed/)
+
+NASA Breaking News (Press Releases): Feed RSS com os comunicados de imprensa e notícias recentes da NASA. Esse feed inclui anúncios de descobertas espaciais, atualizações de missões e alertas importantes da agência espacial dos EUA. (URL do feed: https://www.nasa.gov/rss/breaking_news.rss)
+
+ESA Top News (Agência Espacial Europeia): A ESA oferece um feed RSS com suas principais notícias, cobrindo lançamentos, missões e eventos astronômicos relacionados à Europa. (URL do feed: https://www.esa.int/rssfeed/TopNews)
+
+EarthSky – Space: Feed de notícias do EarthSky, site de ciência que publica atualizações sobre eventos celestes como chuvas de meteoros, eclipses, auroras e outras curiosidades astronômicas. (URL do feed: https://earthsky.org/feed/)
+
+Phys.org – Space News: Feed da seção de espaço do Phys.org, reunindo notas de pesquisas, achados astronômicos e novidades de astrofísica de diversas fontes científicas. (URL do feed: http://feeds.phys.org/physics-news/space)
+
+AccuWeather – Space and Astronomy: A AccuWeather, além de previsão do tempo, mantém uma editoria de Espaço & Astronomia. Seu feed RSS traz matérias sobre fenômenos celestes, clima espacial e eventos astronômicos populares (e.g. superluas, cometas). (URL do feed: https://www.accuweather.com/rss/en/space-weather)
+
+Cada um desses feeds é público e gratuito. Basta adicionar o URL em seu leitor de RSS preferido para receber os updates em tempo real. 🔭
+
+🌪️ Fenômenos Naturais
+
+Esta seção reúne feeds RSS que informam sobre desastres naturais – de terremotos a furacões – fornecidos por fontes oficiais e confiáveis globais. Assim, você pode monitorar alertas e notícias sobre eventos geofísicos e climáticos significativos:
+
+USGS Significant Earthquakes: Feed (formato Atom) do Serviço Geológico dos EUA listando os terremotos significativos ocorridos recentemente no mundo. Esse feed fornece registros rápidos de abalos sísmicos de maior magnitude (geralmente acima de 5.5). (URL do feed: https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom)
+
+NOAA / NWS Tsunami Warnings (Pacific/Atlantic): Feeds Atom dos Centros de Alerta de Tsunami dos EUA, cobrindo os boletins de tsunami para diferentes regiões. Em especial: o feed do National Tsunami Warning Center (para Pacífico Leste, Atlântico e Caribe) e do Pacific Tsunami Warning Center (Pacífico Oeste e Índico). Ambos são disponibilizados via o portal tsunami.gov. (URLs dos feeds: https://www.tsunami.gov/events/xml/PAAQAtom.xml (NTWC) e https://www.tsunami.gov/events/xml/PHEBAtom.xml (PTWC)) – Obs: feeds públicos em formato Atom.
+
+GDACS – Alertas Globais de Desastres: O Global Disaster Alert and Coordination System fornece RSS com alertas multi-hazard. Por exemplo, o feed de ciclones tropicais recentes (última semana) e de inundações recentes pelo mundo, com classificação de severidade. Esses feeds consolidam informações de agências internacionais (ONU, etc.) sobre furacões, tufões, enchentes e outros eventos naturais. (URLs dos feeds: https://gdacs.org/xml/rss_tc_7d.xml (ciclones 7 dias) e https://gdacs.org/xml/rss_flood_7d.xml (enchentes 7 dias))
+
+NASA Earth Observatory – Natural Events: Feed RSS de Eventos Naturais do Earth Observatory (NASA). Traz imagens de satélite e breves notas explicativas sobre ocorrências como grandes incêndios florestais, erupções vulcânicas, tempestades severas, frentes frias e outros fenômenos captados por satélite. (URL do feed: https://earthobservatory.nasa.gov/Feeds/NaturalEvents)
+
+Smithsonian/USGS Weekly Volcanic Activity Report: Feed RSS semanal do relatório global de atividade vulcânica compilado pelo Smithsonian (Global Volcanism Program) em conjunto com o USGS. Inclui atualizações sobre erupções em andamento, aumentos de alerta e novos distúrbios vulcânicos no mundo todo, com fontes locais citadas. (URL do feed: https://volcano.si.edu/news/WeeklyVolcanoRSS.xml)
+
+USGS Volcano Hazards – U.S. Volcano Updates: Feed RSS do Programa de Perigos Vulcânicos do USGS cobrindo alertas e atualizações de vulcões nos EUA (e.g. Havaí, Alasca, Cascades). Essa fonte notifica mudanças de nível de alerta (NORMAL/ADVISORY/WATCH/WARNING) e relatórios de atividades significativas nos vulcões monitorados. (URL do feed: https://volcanoes.usgs.gov/rss/vhpcaprss.xml)
+
+NHC/NWS Hurricane RSS (Atlantic/Pacific): Feeds do Centro Nacional de Furacões (NOAA/NWS) para acompanhar tempestades tropicais, furacões e tufões. Em especial, os feeds dinâmicos para ciclones ativos no Atlântico e no Pacífico leste. Esses feeds atualizam automaticamente quando sistemas tropicais estão em curso, incluindo boletins públicos e avisos. (URLs dos feeds: https://www.nhc.noaa.gov/index-at.xml (Atlântico) e https://www.nhc.noaa.gov/index-ep.xml (Pacífico Leste))
+
+Todos esses feeds são de acesso livre. Vale notar que alguns (como os da NOAA/USGS) fornecem dados brutos ou notificações curtas – indicando que o evento ocorreu – e costumam linkar para detalhes nos sites oficiais. 🔔🌏
+
+🧬 Riscos Biológicos e Ambientais
+
+Nesta categoria, elencamos feeds que notificam emergências de saúde pública, acidentes ambientais e desastres biológicos – como surtos epidêmicos, incêndios florestais de grande porte, contaminações ou vazamentos radiológicos:
+
+WHO Disease Outbreak News (DON): A Organização Mundial da Saúde publica o Disease Outbreak News, com informes oficiais sobre surtos de doenças infecciosas em todo o globo. Embora não haja um RSS público direto no site da OMS, é possível acessar essas atualizações via a API gratuita da WHO ou através de serviços de terceiros. (Alternativa: o portal da OMS fornece uma API REST para as DON; para uso via RSS, pode-se empregar ferramentas de conversão ou serviços como o IFTTT.*)
+
+Outbreak News Today – Infectious Disease News: Feed RSS do site Outbreak News Today, que funciona como uma revista digital de notícias sobre doenças infecciosas, surtos virais, alertas da OMS e CDC, etc. É uma fonte não governamental porém amplamente utilizada na comunidade epidemiológica por agregar informações atualizadas de múltiplos países. (URL do feed: http://outbreaknewstoday.com/feed/)
+
+CDC Emerging Infectious Diseases (EID) Journal RSS: O CDC (EUA) disponibiliza feeds RSS para publicações e relatórios sobre doenças emergentes. Em especial, o jornal Emerging Infectious Diseases tem um feed que destaca estudos e notas sobre patógenos novos, zoonoses e análise de surtos atuais. (URL do feed: https://wwwnc.cdc.gov/eid/rss.xml)
+
+Wildfire Today – Incêndios Florestais: Feed RSS do Wildfire Today, site especializado em notícias de incêndios florestais no mundo todo. Inclui boletins sobre grandes queimadas, atualizações de controle, evacuações e estatísticas de temporadas de fogo. É uma fonte amplamente seguida por profissionais de manejo de fogo. (URL do feed: https://wildfiretoday.com/feed/)
+
+NASA Earth Observatory – Natural Hazards (incêndios): Conforme citado acima, o feed de Eventos Naturais da NASA Earth Observatory também cobre incêndios de destaque – mostrando imagens de satélite e descrição de incêndios severos em diferentes continentes. (Mesmo feed listado em Fenômenos Naturais.)
+
+IAEA News (Nuclear Incidents): Feed RSS de notícias da Agência Internacional de Energia Atômica, cobrindo comunicados sobre incidentes nucleares, vazamentos radioativos ou emergências radiológicas. O feed “Top News” da IAEA inclui notas sobre inspeções, acidentes em usinas, bem como aspectos positivos do uso seguro da energia nuclear. (URL do feed: https://www.iaea.org/feeds/topnews)
+
+UN Environment Programme – Pollution & Climate: Feed de notícias do Programa da ONU para o Meio Ambiente relacionado a poluição ambiental, emergências químicas e crises ecológicas. Essa fonte divulga informes sobre marés negras, acidentes industriais, contaminação do ar/água e ações globais sobre mudança climática. (URL do feed: https://www.unep.org/rss.xml)
+
+(Observação: O feed da OMS (DON) pode exigir abordagem via API; todas as demais fontes acima oferecem RSS público de livre acesso.)
+
+🏭 Riscos Tecnológicos
+
+Nesta seção, reunimos feeds que cobrem amenças tecnológicas e acidentes industriais – desde falhas de infraestrutura até ataques cibernéticos de grande escala:
+
+Reuters “World News” – Desastres e Acidentes: A agência Reuters é referência em coberturas imparciais e rápidas de incidentes globais. Seu feed internacional (World News) inclui notícias sobre quedas de aeronaves, acidentes de transporte, colapsos estruturais (ex: desabamento de pontes, rompimento de barragens) e apagões energéticos em qualquer país, assim como atualizações de conflitos e crises. (URL do feed: http://feeds.reuters.com/Reuters/worldNews)
+
+BBC News – Science & Environment: Além da editoria Mundo, o feed de Ciência e Meio Ambiente da BBC traz cobertura de acidentes tecnológicos com impacto ambiental, como vazamentos químicos, falhas em usinas ou incidentes industriais, sempre com qualidade editorial da BBC. (URL do feed: http://feeds.bbci.co.uk/news/science_and_environment/rss.xml)
+
+The Hacker News – Cybersecurity RSS: Feed RSS do The Hacker News, um dos sites mais confiáveis em notícias de cibersegurança e ataques cibernéticos. Atualiza constantemente sobre novas ameaças (ransomware, malware), breaches de dados, ataques a infraestruturas críticas e alertas de vulnerabilidades. (URL do feed: https://feeds.feedburner.com/TheHackersNews)
+
+Krebs on Security – Blog RSS: Brian Krebs é um jornalista investigativo renomado em segurança da informação. Seu blog Krebs on Security possui um feed RSS com artigos detalhados sobre ciberataques de alto perfil, hacking e crimes digitais. É útil para contexto e profundidade em incidentes que muitas vezes ganham manchetes. (URL do feed: https://krebsonsecurity.com/feed/)
+
+Aviation Safety Network – Aviation Occurrences: Para riscos em transportes, a ASN compila um digest de ocorrências aeronáuticas (acidentes e incidentes relevantes). Embora o site seja principalmente um banco de dados, ele oferece um boletim mensal gratuito por e-mail e um feed RSS não-oficial via FeedBurner com as últimas notificações de acidentes aéreos. (URL do feed: http://feeds.feedburner.com/aviation-safety-network)
+
+Power Outage US – Electrical Grid Incidents: Esse feed (mantido pelo site poweroutage.us) oferece atualizações quase em tempo real sobre apagões e falhas na rede elétrica nos Estados Unidos. Indica o número de clientes sem energia por estado e pode servir de indicador em grandes eventos de blackout. (URL do feed: https://poweroutage.us/rss)
+
+(Todos os feeds listados acima são de acesso público. Os de cibersegurança (Hacker News, Krebs) não requerem API – basta assinar via leitor RSS.)
+
+⚔️ Geopolítica e Conflitos
+
+Para acompanhar conflitos armados, crises diplomáticas, terrorismo e questões de segurança global, os seguintes feeds fornecem cobertura confiável e abrangente:
+
+BBC News – World: Feed RSS de Notícias Mundiais da BBC, abrangendo desde guerras e confrontos armados até golpes de estado, tensões nucleares e terrorismo internacional. A BBC, como mídia pública britânica, prima pela checagem rigorosa e correspondentes locais, sendo excelente fonte sobre Ucrânia, Oriente Médio, etc. (URL do feed: http://feeds.bbci.co.uk/news/world/rss.xml)
+
+The Guardian – World News: Feed RSS do Guardian (edição internacional) focado em noticiário global. O Guardian frequentemente traz perspectivas aprofundadas sobre conflitos (por ex. Guerra na Ucrânia, Síria), crises humanitárias e disputas diplomáticas. (URL do feed: https://www.theguardian.com/world/rss)
+
+Al Jazeera English – Top Stories: Al Jazeera, sediada no Qatar, cobre geopolitica especialmente do Oriente Médio, África e Ásia com grande alcance. Seu feed de Top Stories em inglês inclui atualizações de conflitos regionais, terrorismo e política internacional sob uma ótica frequentemente diferente da mídia ocidental. (URL do feed: https://www.aljazeera.com/xml/rss/all.xml)
+
+United Nations News – Peace and Security: O serviço de notícias da ONU possui um feed dedicado a Paz e Segurança, cobrindo comunicados oficiais sobre conflitos, missões de paz, sanções internacionais e crises diplomáticas graves. É útil para acompanhar a posição da comunidade internacional e dados humanitários de guerras. (URL do feed: https://news.un.org/feed/subscribe/en/news/topic/peace-and-security)
+
+ReliefWeb – Crises Humanitárias: O portal da ONU ReliefWeb agrega relatórios e atualizações sobre emergências humanitárias e conflitos armados no mundo todo. Há feeds customizáveis; um exemplo é o feed global de últimas atualizações, englobando tanto desastres naturais quanto situações de guerra (sitreports, alertas da Cruz Vermelha, etc.). (URL do feed: https://reliefweb.int/updates/rss/en)
+
+Reuters – Conflict Zone News: Além do feed global já citado, a Reuters oferece seções focadas (ex: Middle East, Africa). O feed de notícias do Oriente Médio, por exemplo, traz notícias verificadas sobre conflitos na região, terrorismo e disputas político-militares. (URL do feed: http://feeds.reuters.com/reuters/MiddleEastNews)
+
+Ao assinar esses feeds, você terá pelo menos 40 fontes confiáveis cobrindo todas as categorias de riscos solicitadas – de explosões solares a crises bélicas – tudo disponível publicamente (ou via API gratuita, no caso específico da OMS). ✅
+
+Cada feed pode ser adicionado a um agregador de RSS (como Feedly, Inoreader, etc.), permitindo acompanhar em tempo real os “feedbacks de notícias” desses grandes sites e agências sobre os temas críticos acima.
