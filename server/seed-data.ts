@@ -98,6 +98,55 @@ export async function seedInitialData() {
       type: "media",
       trusted: true,
     },
+    {
+      name: "GDACS - Global Disaster Alert (ONU/União Europeia)",
+      url: "https://www.gdacs.org",
+      rssUrl: "",
+      type: "official",
+      trusted: true,
+    },
+    {
+      name: "NASA Jet Propulsion Laboratory (JPL)",
+      url: "https://www.jpl.nasa.gov",
+      rssUrl: "",
+      type: "media",
+      trusted: true,
+    },
+    {
+      name: "INPE / CPTEC (Brasil)",
+      url: "http://agricultura.cptec.inpe.br",
+      rssUrl: "",
+      type: "media",
+      trusted: true,
+    },
+    {
+      name: "WHO - World Health Organization (OMS)",
+      url: "https://www.who.int",
+      rssUrl: "",
+      type: "official",
+      trusted: true,
+    },
+    {
+      name: "Reuters (Top News)",
+      url: "https://www.reutersagency.com",
+      rssUrl: "",
+      type: "media",
+      trusted: true,
+    },
+    {
+      name: "Reuters Environment",
+      url: "https://www.reutersagency.com",
+      rssUrl: "",
+      type: "media",
+      trusted: true,
+    },
+    {
+      name: "Reuters Science",
+      url: "https://www.reuters.com",
+      rssUrl: "",
+      type: "media",
+      trusted: true,
+    },
   ];
 
   let addedCount = 0;
