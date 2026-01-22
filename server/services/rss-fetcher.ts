@@ -136,7 +136,21 @@ async function verifySentinela(title: string, content: string): Promise<{
   }
 }
 
-async function generateAiSummary(title: string, content: string): Promise<{ summary: string, themes: string[], translatedTitle?: string } | null> {
+const PORTUGUESE_SOURCE_EXACT_NAMES = [
+  'agência brasil (nacional)',
+  'bbc news brasil',
+  'g1 - globo',
+  'onu news (nações unidas - em português)',
+];
+
+function isPortugueseSource(sourceName: string): boolean {
+  const lowerName = sourceName.toLowerCase().trim();
+  const isPortuguese = PORTUGUESE_SOURCE_EXACT_NAMES.some(exactName => lowerName === exactName);
+  console.log(`[Idioma] Fonte "${sourceName}" -> ${isPortuguese ? 'PORTUGUÊS (sem tradução)' : 'INGLÊS (traduzir)'}`);
+  return isPortuguese;
+}
+
+async function generateAiSummary(title: string, content: string, sourceName: string): Promise<{ summary: string, themes: string[], translatedTitle?: string } | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
       return null;
@@ -150,7 +164,36 @@ async function generateAiSummary(title: string, content: string): Promise<{ summ
       },
     });
 
-    const prompt = `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
+    const isPortuguese = isPortugueseSource(sourceName);
+
+    const prompt = isPortuguese
+      ? `Você é um jornalista brasileiro especializado em criar resumos claros e acessíveis.
+
+# CONTEXTO (Fonte já em Português)
+Título: ${title}
+Conteúdo: ${content}
+
+# TAREFA 1: RESUMO
+Crie um resumo claro e simples do conteúdo.
+- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
+- Tenha no máximo 3 parágrafos curtos.
+- Evite jargões técnicos.
+- Responda: O que? Onde? Quando? Por quê é importante?
+
+# TAREFA 2: CATEGORIZAÇÃO
+Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto.
+**ATENÇÃO CRÍTICA**: Se a notícia não tratar de desastres, crises globais ou fenômenos científicos, não tente forçar uma categoria.
+
+Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Chuva Severa / Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo / Nevasca, Granizo, Maré Alta / Ressaca, Tempestade Solar / Geomagnética, Aurora Boreal, Eclipse, Asteroide / Meteoro, Lixo Espacial, Epidemia / Vírus, Incêndio, Poluição Tóxica / Radiação, Colapso Estrutural, Apagão, Acidente de Transporte, Ciberataque, Guerra / Conflito, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática.
+
+Retorne no seguinte formato JSON:
+{
+  "resumo": "seu resumo aqui",
+  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
+}
+
+Responda apenas com o JSON.`
+      : `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
 
 # CONTEXTO
 Título original: ${title}
@@ -312,7 +355,7 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       localCount++;
       if (onProgress) onProgress({ count: localCount });
       
-      const aiResult = await generateAiSummary(title, content);
+      const aiResult = await generateAiSummary(title, content, source.name);
       if (aiResult) {
         const allThemes = CATEGORIES.flatMap(c => c.themes);
         const newTagIds = aiResult.themes
