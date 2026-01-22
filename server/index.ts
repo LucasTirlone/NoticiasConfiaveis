@@ -67,8 +67,8 @@ app.use((req, res, next) => {
   // Auto-fetch news on startup and periodically (both dev and production)
   const { fetchAllRSS } = await import("./services/rss-fetcher");
   
-  // Initial fetch after server starts (delayed to not block startup)
-  setTimeout(async () => {
+  // Initial fetch immediately after server starts (runs in background, doesn't block)
+  (async () => {
     log("Starting automatic news fetch...", "rss");
     try {
       await fetchAllRSS();
@@ -76,7 +76,7 @@ app.use((req, res, next) => {
     } catch (error) {
       log(`Error in automatic news fetch: ${error}`, "rss");
     }
-  }, 10000); // Wait 10 seconds after startup
+  })();
 
   // Periodic refresh every 30 minutes
   setInterval(async () => {

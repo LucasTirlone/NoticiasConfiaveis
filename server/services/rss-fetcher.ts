@@ -285,7 +285,7 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
     let localCount = 0;
     
     for (const item of feed.items) {
-      if (processedCount >= 10) break; // Limit to 10 items total per source for performance
+      if (processedCount >= 20) break; // Limit to 20 items total per source
 
       const title = item.title || "Sem título";
       const originalUrl = item.link || source.url;
