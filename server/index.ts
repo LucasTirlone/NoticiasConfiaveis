@@ -64,30 +64,22 @@ app.use((req, res, next) => {
   const { seedInitialData } = await import("./seed-data");
   await seedInitialData();
 
-  // Auto-fetch news on startup and periodically (both dev and production)
+  // Auto-fetch news periodically (both dev and production)
+  // NOTE: No automatic fetch on startup - only every 24h or when user clicks refresh button
   const { fetchAllRSS } = await import("./services/rss-fetcher");
   
-  // Initial fetch immediately after server starts (runs in background, doesn't block)
-  (async () => {
-    log("Starting automatic news fetch...", "rss");
-    try {
-      await fetchAllRSS();
-      log("Automatic news fetch completed", "rss");
-    } catch (error) {
-      log(`Error in automatic news fetch: ${error}`, "rss");
-    }
-  })();
+  log("RSS auto-refresh configured: every 24 hours or manual button click", "rss");
 
-  // Periodic refresh every 30 minutes
+  // Periodic refresh every 24 hours
   setInterval(async () => {
-    log("Starting periodic news refresh...", "rss");
+    log("Starting periodic news refresh (24h interval)...", "rss");
     try {
       await fetchAllRSS();
       log("Periodic news refresh completed", "rss");
     } catch (error) {
       log(`Error in periodic news refresh: ${error}`, "rss");
     }
-  }, 30 * 60 * 1000); // 30 minutes
+  }, 24 * 60 * 60 * 1000); // 24 hours
 
   await registerRoutes(httpServer, app);
 
