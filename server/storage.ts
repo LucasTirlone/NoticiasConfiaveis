@@ -136,21 +136,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async findNewsItemByOriginalTitleOrUrl(originalTitle: string, originalUrl: string): Promise<NewsItem | undefined> {
-    // Verifica por título original (normalizado) OU por URL original
-    const conditions = [];
-    
-    if (originalTitle) {
-      conditions.push(eq(newsItems.originalTitle, originalTitle));
-    }
-    
+    // Prioridade: URL é o identificador mais confiável e estável.
+    // Se a URL está disponível, ela é usada exclusivamente — evita falsos positivos por variações de título.
+    // Título é usado apenas como fallback quando a URL não está presente no feed.
     if (originalUrl) {
-      conditions.push(eq(newsItems.originalUrl, originalUrl));
+      const [byUrl] = await db.select().from(newsItems).where(eq(newsItems.originalUrl, originalUrl));
+      if (byUrl) return byUrl;
     }
-    
-    if (conditions.length === 0) return undefined;
-    
-    const [item] = await db.select().from(newsItems).where(or(...conditions));
-    return item;
+
+    // Fallback: comparar pelo título original (inglês) apenas quando URL ausente
+    if (originalTitle && !originalUrl) {
+      const [byTitle] = await db.select().from(newsItems).where(eq(newsItems.originalTitle, originalTitle));
+      return byTitle;
+    }
+
+    return undefined;
   }
 
   async countNewsItems(): Promise<number> {
