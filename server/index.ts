@@ -75,7 +75,15 @@ app.use((req, res, next) => {
     const sourcesWithRSS = allSources.filter(s => s.rssUrl);
     const lastFetchedDates = sourcesWithRSS
       .map(s => s.lastFetched)
-      .filter((d): d is Date => d instanceof Date && !isNaN(d.getTime()));
+      .map(d => {
+        if (d instanceof Date && !isNaN(d.getTime())) return d;
+        if (typeof d === "string" || typeof d === "number") {
+          const parsed = new Date(d);
+          return isNaN(parsed.getTime()) ? null : parsed;
+        }
+        return null;
+      })
+      .filter((d): d is Date => d !== null);
 
     const mostRecentFetch = lastFetchedDates.length > 0
       ? new Date(Math.max(...lastFetchedDates.map(d => d.getTime())))
@@ -84,14 +92,18 @@ app.use((req, res, next) => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     if (!mostRecentFetch || mostRecentFetch < twentyFourHoursAgo) {
+      const ageHours = mostRecentFetch
+        ? Math.round((Date.now() - mostRecentFetch.getTime()) / 3_600_000)
+        : null;
       const reason = !mostRecentFetch
         ? "nenhum fetch anterior encontrado"
-        : `último fetch foi em ${mostRecentFetch.toISOString()} (há mais de 24h)`;
+        : `último fetch foi há ${ageHours}h (${mostRecentFetch.toISOString()})`;
       log(`Iniciando fetch de startup: ${reason}`, "rss");
       fetchAllRSS().then(() => log("Fetch de startup concluído", "rss")).catch(err => log(`Erro no fetch de startup: ${err}`, "rss"));
     } else {
+      const ageHours = Math.round((Date.now() - mostRecentFetch.getTime()) / 3_600_000);
       const nextFetch = new Date(mostRecentFetch.getTime() + 24 * 60 * 60 * 1000);
-      log(`Fetch não necessário no startup. Último: ${mostRecentFetch.toISOString()}. Próximo: ${nextFetch.toISOString()}`, "rss");
+      log(`Fetch não necessário no startup. Último há ${ageHours}h. Próximo: ${nextFetch.toISOString()}`, "rss");
     }
   } catch (err) {
     log(`Erro ao verificar último fetch no startup: ${err}`, "rss");
