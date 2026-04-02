@@ -1,9 +1,10 @@
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import { 
   Card, 
   CardContent, 
-  CardDescription, 
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
@@ -16,28 +17,61 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { ShieldCheck, Eye, Bell, HelpCircle, Info } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ShieldCheck, Eye, Bell, Info, ScrollText, LogOut, User, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Settings() {
   const { preferences, updatePreferences } = useStore();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Até logo!");
+  };
 
   return (
     <div className="space-y-8 pb-20">
       <div className="space-y-2">
-        <h1 className="text-3xl font-serif font-bold text-primary">Ajustes e Ajuda</h1>
+        <h1 className="text-3xl font-serif font-bold text-primary">Ajustes</h1>
         <p className="text-lg text-muted-foreground">
-          Personalize sua experiência e entenda como o Verifica protege você.
+          Personalize sua experiência no Sentinela IA.
         </p>
       </div>
 
       <div className="grid gap-6">
+        {/* Account Section */}
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <User className="w-5 h-5" />
+                Sua Conta
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-semibold text-foreground">{user.displayName}</span>
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full h-11 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={handleLogout}
+                data-testid="button-logout-settings"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair da conta
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Como Funciona Section */}
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <Info className="w-6 h-6 text-primary" />
-              Como o Verifica funciona?
+              Como o Sentinela IA funciona?
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-lg">
@@ -104,20 +138,55 @@ export default function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-             <div className="flex items-center justify-between space-x-2">
+            <div className="flex items-center justify-between space-x-2">
               <Label htmlFor="contrast" className="text-lg flex flex-col">
                 <span>Alto Contraste</span>
                 <span className="font-normal text-muted-foreground text-base">Melhora a leitura para visão cansada</span>
               </Label>
-              <Switch 
-                id="contrast" 
+              <Switch
+                id="contrast"
                 checked={preferences.highContrast}
                 onCheckedChange={(c) => updatePreferences({ highContrast: c })}
                 className="scale-125 mr-2"
+                data-testid="switch-high-contrast"
               />
             </div>
           </CardContent>
         </Card>
+
+        {/* Legal Links */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <ShieldCheck className="w-5 h-5" />
+              Privacidade e Termos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link href="/privacy">
+              <div className="flex items-center justify-between py-3 px-1 border-b cursor-pointer hover:text-primary transition-colors" data-testid="link-privacy-policy">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">Política de Privacidade</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </Link>
+            <Link href="/terms">
+              <div className="flex items-center justify-between py-3 px-1 cursor-pointer hover:text-primary transition-colors" data-testid="link-terms">
+                <div className="flex items-center gap-2">
+                  <ScrollText className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Termos de Uso</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground pb-4">
+          Sentinela IA — versão 2.0 · © 2026
+        </p>
       </div>
     </div>
   );

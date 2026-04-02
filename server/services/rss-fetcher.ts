@@ -444,14 +444,18 @@ export async function fetchAllRSS(): Promise<boolean> {
     console.log("[RSS] Atualização já em andamento por outra instância, pulando...");
     return false;
   }
-  
+
   try {
     const allSources = await storage.getAllSources();
     const sourcesWithRSS = allSources.filter(s => s.rssUrl);
-    
-    for (const source of sourcesWithRSS) {
-      await fetchRSSFromSource(source.id);
-    }
+
+    // Buscar 5 fontes em paralelo para reduzir o tempo total de ~10min para ~2min
+    const { default: pLimit } = await import("p-limit");
+    const limit = pLimit(5);
+
+    await Promise.allSettled(
+      sourcesWithRSS.map(source => limit(() => fetchRSSFromSource(source.id)))
+    );
     return true;
   } finally {
     await storage.releaseRefreshLock();

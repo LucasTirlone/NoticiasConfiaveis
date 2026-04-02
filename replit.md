@@ -1,8 +1,8 @@
-# Verifica - Trusted News Aggregator
+# Sentinela IA - Trusted News Aggregator
 
 ## Overview
 
-Verifica is a Portuguese-language news verification and aggregation platform designed to combat misinformation. The application monitors trusted news sources via RSS feeds, cross-references information from multiple sources, and presents verified news to users with reliability ratings. The system helps users distinguish between confirmed facts, probable information, and unverified claims.
+Sentinela IA is a Portuguese-language news verification and aggregation platform designed to combat misinformation. The application monitors trusted news sources via RSS feeds, cross-references information from multiple sources, and presents verified news to users with reliability ratings. The system helps users distinguish between confirmed facts, probable information, and unverified claims.
 
 ## User Preferences
 
@@ -42,6 +42,9 @@ Preferred communication style: Simple, everyday language.
 - **Path Aliases**: `@/*` for client source, `@shared/*` for shared code, `@assets` for attached assets
 - **Type Safety**: Drizzle-zod for schema validation, shared types between frontend and backend
 - **RSS Aggregation**: Server-side RSS parsing with automatic tag extraction and reliability calculation
+- **Parallel RSS Fetching**: `p-limit` (concurrency=5) used in `fetchAllRSS()` to reduce fetch time from ~10min to ~2min
+- **Auth System**: Session-based auth (express-session + memorystore), password hashing via Node.js `crypto.scrypt`, `/api/auth/register|login|logout|me` endpoints, React `AuthContext`/`useAuth` hook
+- **Auth Flow**: Unauthenticated users are redirected to `/login`; after login, onboarding check runs; `AuthProvider` wraps `StoreProvider` in App.tsx
 
 ### Application Flow
 1. User completes onboarding to select interest tags
@@ -72,3 +75,22 @@ Preferred communication style: Simple, everyday language.
 
 ### Pre-seeded Sources
 The application comes with initial trusted sources including NASA, NOAA, BBC News Brasil, G1 Globo, and Reuters Science for demonstration purposes.
+
+## Pages and Routes
+- `/` — News feed (protected)
+- `/news/:id` — Article detail (protected)
+- `/sources` — RSS sources list (protected)
+- `/settings` — User settings, account info, legal links (protected)
+- `/onboarding` — Interest tag selection after first login (protected)
+- `/login` — Login page (public)
+- `/register` — Registration page (public)
+- `/privacy` — Privacy Policy / LGPD (public)
+- `/terms` — Terms of Service (public)
+
+## App Store Readiness
+- Privacy Policy (LGPD-compliant) at `/privacy`
+- Terms of Service at `/terms`
+- No children's data collection
+- Links from Settings screen
+- Updated meta tags to "Sentinela IA"
+- ARIA labels on interactive elements

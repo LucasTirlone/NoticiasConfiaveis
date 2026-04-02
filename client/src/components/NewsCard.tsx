@@ -3,59 +3,101 @@ import { TrustBadge } from "./TrustBadge";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, ChevronRight, Clock } from "lucide-react";
+import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
+
+const alertLevelBorder: Record<string, string> = {
+  critical: "border-l-[5px] border-l-red-500",
+  warning:  "border-l-[5px] border-l-amber-500",
+  info:     "border-l-[5px] border-l-blue-500",
+  normal:   "border-l-[5px] border-l-border",
+};
+
+const alertLevelBg: Record<string, string> = {
+  critical: "bg-red-50/50 dark:bg-red-950/20",
+  warning:  "bg-amber-50/50 dark:bg-amber-950/20",
+  info:     "bg-blue-50/30 dark:bg-blue-950/10",
+  normal:   "bg-card",
+};
 
 export function NewsCard({ item }: { item: NewsItem }) {
-  const isCritical = item.alertLevel === "critical" || item.alertLevel === "warning";
+  const level = item.alertLevel ?? "normal";
+  const isCritical = level === "critical";
+  const isWarning = level === "warning";
+  const isUrgent = isCritical || isWarning;
+
+  const timeAgo = formatDistanceToNow(new Date(item.timestamp), {
+    addSuffix: true,
+    locale: ptBR,
+  });
 
   return (
-    <Link href={`/news/${item.id}`}>
-      <div 
+    <Link href={`/news/${item.id}`} aria-label={`Ler notícia: ${item.title}`}>
+      <article
+        data-testid={`card-news-${item.id}`}
         className={`
-          group relative flex flex-col gap-3 p-5 rounded-2xl border-2 shadow-sm hover:shadow-md transition-all cursor-pointer bg-card
-          ${isCritical ? 'border-destructive/30 bg-destructive/5' : 'border-border hover:border-primary/30'}
+          group relative rounded-xl border border-border shadow-sm
+          hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden
+          ${alertLevelBorder[level] ?? alertLevelBorder.normal}
+          ${alertLevelBg[level] ?? alertLevelBg.normal}
         `}
       >
-        <div className="flex justify-between items-start gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <TrustBadge level={item.reliability} />
-            {item.sources[0] && (
-              <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                {item.sources[0].name}
-              </span>
-            )}
+        <div className="p-4 space-y-3">
+          {/* Top Row: Badges + Time */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <TrustBadge level={item.reliability} />
+              {item.sources[0] && (
+                <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2 py-0.5 rounded-full truncate max-w-[140px]">
+                  {item.sources[0].name}
+                </span>
+              )}
+            </div>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+              <Clock className="w-3 h-3" aria-hidden />
+              <time dateTime={new Date(item.timestamp).toISOString()}>{timeAgo}</time>
+            </span>
           </div>
-          <span className="text-muted-foreground text-sm flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-md shrink-0">
-            <Clock className="w-3 h-3" />
-            {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true, locale: ptBR })}
-          </span>
-        </div>
 
-        <div className="space-y-2">
-          <h3 className={`font-serif font-bold leading-tight ${isCritical ? 'text-destructive' : 'text-foreground'}`}>
-            {isCritical && <AlertTriangle className="inline w-6 h-6 mr-2 mb-1" />}
+          {/* Headline */}
+          <h3 className={`font-serif font-bold leading-snug text-base md:text-lg ${isCritical ? "text-red-700 dark:text-red-400" : isWarning ? "text-amber-800 dark:text-amber-400" : "text-foreground"}`}>
+            {isUrgent && (
+              <AlertTriangle
+                className={`inline w-4 h-4 mr-1.5 mb-0.5 ${isCritical ? "text-red-500" : "text-amber-500"}`}
+                aria-hidden
+              />
+            )}
             {item.title}
           </h3>
-          <p className="text-base text-foreground/80 line-clamp-3 leading-relaxed">
-            {item.summary.length > 200 ? item.summary.slice(0, 200) + "..." : item.summary}
-          </p>
-        </div>
 
-        <div className="flex justify-between items-center mt-2 border-t pt-3 border-dashed border-border/50">
-          <div className="flex gap-2 flex-wrap">
-            {item.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="text-xs uppercase font-semibold text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                {tag}
-              </span>
-            ))}
-            {item.tags.length > 2 && <span className="text-xs text-muted-foreground self-center">+{item.tags.length - 2}</span>}
-          </div>
-          
-          <div className="flex items-center text-primary font-bold text-sm group-hover:underline decoration-2 underline-offset-4">
-            Ler tudo <ChevronRight className="w-4 h-4 ml-1" />
+          {/* Summary */}
+          <p className="text-sm text-foreground/75 line-clamp-3 leading-relaxed">
+            {item.summary.length > 220 ? item.summary.slice(0, 220) + "…" : item.summary}
+          </p>
+
+          {/* Bottom Row: Tags + CTA */}
+          <div className="flex items-center justify-between pt-2 border-t border-border/40">
+            <div className="flex gap-1.5 flex-wrap">
+              {item.tags.slice(0, 3).map(tag => (
+                <span
+                  key={tag}
+                  className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full"
+                >
+                  {tag}
+                </span>
+              ))}
+              {item.tags.length > 3 && (
+                <span className="text-[10px] text-muted-foreground self-center">
+                  +{item.tags.length - 3}
+                </span>
+              )}
+            </div>
+
+            <span className="flex items-center gap-1 text-xs text-primary font-semibold group-hover:gap-2 transition-all">
+              Ler <ArrowRight className="w-3.5 h-3.5" aria-hidden />
+            </span>
           </div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 }

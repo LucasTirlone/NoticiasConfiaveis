@@ -17,10 +17,12 @@ import { db } from "../db";
 import { eq, desc, or, and, isNotNull, ne } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
+  // Users / Auth
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  createAuthUser(data: { email: string; displayName: string; passwordHash: string }): Promise<User>;
   
   // Sources
   getAllSources(): Promise<Source[]>;
@@ -64,6 +66,22 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createAuthUser(data: { email: string; displayName: string; passwordHash: string }): Promise<User> {
+    const [user] = await db.insert(users).values({
+      username: data.email,
+      password: "managed-by-auth",
+      email: data.email,
+      displayName: data.displayName,
+      passwordHash: data.passwordHash,
+    }).returning();
     return user;
   }
 

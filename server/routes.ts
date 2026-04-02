@@ -1,10 +1,39 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertSourceSchema, insertUserPreferencesSchema } from "@shared/schema";
+import { insertSourceSchema, insertUserPreferencesSchema, loginUserSchema, registerUserSchema } from "@shared/schema";
 import { fetchAllRSS, fetchRSSFromSource } from "./services/rss-fetcher";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function verifyPassword(supplied: string, stored: string): Promise<boolean> {
+  try {
+    const [hashed, salt] = stored.split(".");
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch {
+    return false;
+  }
+}
+
+function requireAuth(req: Request, res: Response, next: () => void) {
+  if (!req.session?.userId) {
+    res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+  next();
+}
 
 // Helper to enrich news items with full source objects
 async function enrichNewsItems(items: any[]) {
@@ -25,6 +54,95 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // ===== AUTH =====
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const parsed = registerUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ message: parsed.error.issues[0].message });
+        return;
+      }
+      const { email, displayName, password } = parsed.data;
+
+      const existing = await storage.getUserByEmail(email);
+      if (existing) {
+        res.status(409).json({ message: "Este e-mail já está cadastrado." });
+        return;
+      }
+
+      const passwordHash = await hashPassword(password);
+      const user = await storage.createAuthUser({ email, displayName, passwordHash });
+
+      req.session.userId = user.id;
+      res.status(201).json({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      });
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({ message: "Erro ao criar conta." });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const parsed = loginUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ message: parsed.error.issues[0].message });
+        return;
+      }
+      const { email, password } = parsed.data;
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        res.status(401).json({ message: "E-mail ou senha incorretos." });
+        return;
+      }
+
+      const valid = await verifyPassword(password, user.passwordHash);
+      if (!valid) {
+        res.status(401).json({ message: "E-mail ou senha incorretos." });
+        return;
+      }
+
+      req.session.userId = user.id;
+      res.json({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Erro ao fazer login." });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logout realizado com sucesso." });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session?.userId) {
+      res.status(401).json({ message: "Não autenticado" });
+      return;
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      req.session.destroy(() => {});
+      res.status(401).json({ message: "Sessão inválida" });
+      return;
+    }
+    res.json({
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+    });
+  });
+
   // ===== NEWS ITEMS =====
   app.get("/api/news", async (req, res) => {
     try {

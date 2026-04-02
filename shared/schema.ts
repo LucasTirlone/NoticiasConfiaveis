@@ -7,6 +7,11 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").unique(),
+  displayName: text("display_name"),
+  passwordHash: text("password_hash"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  emailVerified: boolean("email_verified").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -14,8 +19,26 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
+export const registerUserSchema = z.object({
+  email: z.string().email("E-mail inválido"),
+  displayName: z.string().min(2, "Nome deve ter ao menos 2 caracteres").max(60),
+  password: z
+    .string()
+    .min(8, "Senha deve ter ao menos 8 caracteres")
+    .regex(/[A-Z]/, "Senha deve conter ao menos uma letra maiúscula")
+    .regex(/[0-9]/, "Senha deve conter ao menos um número"),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: "Você deve aceitar os termos" }) }),
+});
+
+export const loginUserSchema = z.object({
+  email: z.string().email("E-mail inválido"),
+  password: z.string().min(1, "Informe sua senha"),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
 
 export const sources = pgTable("sources", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
