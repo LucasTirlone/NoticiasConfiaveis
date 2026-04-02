@@ -64,13 +64,42 @@ app.use((req, res, next) => {
   const { seedInitialData } = await import("./seed-data");
   await seedInitialData();
 
-  // Auto-fetch news periodically (both dev and production)
-  // NOTE: No automatic fetch on startup - only every 24h or when user clicks refresh button
   const { fetchAllRSS } = await import("./services/rss-fetcher");
-  
-  log("RSS auto-refresh configured: every 24 hours or manual button click", "rss");
+  const { storage } = await import("./storage");
 
-  // Periodic refresh every 24 hours
+  // On startup, check the DB to see when news was last fetched.
+  // If it has been more than 24h (or never), trigger a fetch immediately.
+  // This fixes the setInterval-only approach which resets on every server restart.
+  try {
+    const allSources = await storage.getAllSources();
+    const sourcesWithRSS = allSources.filter(s => s.rssUrl);
+    const lastFetchedDates = sourcesWithRSS
+      .map(s => s.lastFetched)
+      .filter((d): d is Date => d instanceof Date && !isNaN(d.getTime()));
+
+    const mostRecentFetch = lastFetchedDates.length > 0
+      ? new Date(Math.max(...lastFetchedDates.map(d => d.getTime())))
+      : null;
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    if (!mostRecentFetch || mostRecentFetch < twentyFourHoursAgo) {
+      const reason = !mostRecentFetch
+        ? "nenhum fetch anterior encontrado"
+        : `último fetch foi em ${mostRecentFetch.toISOString()} (há mais de 24h)`;
+      log(`Iniciando fetch de startup: ${reason}`, "rss");
+      fetchAllRSS().then(() => log("Fetch de startup concluído", "rss")).catch(err => log(`Erro no fetch de startup: ${err}`, "rss"));
+    } else {
+      const nextFetch = new Date(mostRecentFetch.getTime() + 24 * 60 * 60 * 1000);
+      log(`Fetch não necessário no startup. Último: ${mostRecentFetch.toISOString()}. Próximo: ${nextFetch.toISOString()}`, "rss");
+    }
+  } catch (err) {
+    log(`Erro ao verificar último fetch no startup: ${err}`, "rss");
+  }
+
+  log("RSS auto-refresh configurado: a cada 24h ou pelo botão de refresh", "rss");
+
+  // Periodic refresh every 24 hours (safety net for long-running instances)
   setInterval(async () => {
     log("Starting periodic news refresh (24h interval)...", "rss");
     try {
