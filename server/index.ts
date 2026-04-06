@@ -3,7 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "../db/index";
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,14 +21,18 @@ declare module "express-session" {
   }
 }
 
-const MemoryStore = createMemoryStore(session);
+const PgSession = connectPgSimple(session);
 
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "sentinela-ia-super-secret-2025",
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStore({ checkPeriod: 86_400_000 }),
+    store: new PgSession({
+      pool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
