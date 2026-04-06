@@ -89,10 +89,16 @@ export async function registerRoutes(
       const user = await storage.createAuthUser({ email, displayName, passwordHash });
 
       req.session.userId = user.id;
-      res.status(201).json({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Erro ao salvar sessão." });
+        }
+        res.status(201).json({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        });
       });
     } catch (error) {
       console.error("Register error:", error);
@@ -122,10 +128,16 @@ export async function registerRoutes(
       }
 
       req.session.userId = user.id;
-      res.json({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Erro ao salvar sessão." });
+        }
+        res.json({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        });
       });
     } catch (error) {
       console.error("Login error:", error);
