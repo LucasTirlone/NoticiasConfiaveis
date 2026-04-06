@@ -20,11 +20,11 @@ export function TrustBadge({ level, className, showLabel = true }: TrustBadgePro
     },
     medium: {
       icon: ShieldCheck, // Still a check, but neutral
-      text: "Provável",
+      text: "Verificada",
       color: "text-blue-700 dark:text-blue-400",
       bg: "bg-blue-100 dark:bg-blue-900/30",
       border: "border-blue-200 dark:border-blue-800",
-      desc: "Reportado por grandes veículos, aguardando oficial."
+      desc: "Verificada pelo Sentinela IA com base em fontes de imprensa reconhecidas."
     },
     low: {
       icon: ShieldAlert,

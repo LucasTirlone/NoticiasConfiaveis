@@ -83,7 +83,7 @@ export default function Settings() {
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li><span className="text-green-700 font-bold">Escudo Verde (Confiável):</span> Confirmado por múltiplas fontes oficiais.</li>
-              <li><span className="text-blue-700 font-bold">Escudo Azul (Provável):</span> Noticiado por imprensa séria, mas aguardando nota oficial.</li>
+              <li><span className="text-blue-700 font-bold">Escudo Azul (Verificada):</span> Verificada pelo Sentinela IA. Publicada por veículo de grande imprensa.</li>
               <li><span className="text-amber-700 font-bold">Lupa (Em Apuração):</span> Algo novo que estamos investigando. Tenha cautela.</li>
               <li><span className="text-red-700 font-bold">Escudo Vermelho (Falso):</span> Mentira ou golpe desmentido.</li>
             </ul>

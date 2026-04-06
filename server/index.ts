@@ -114,9 +114,9 @@ app.use((req, res, next) => {
       ? new Date(Math.max(...lastFetchedDates.map(d => d.getTime())))
       : null;
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
 
-    if (!mostRecentFetch || mostRecentFetch < twentyFourHoursAgo) {
+    if (!mostRecentFetch || mostRecentFetch < oneHourAgo) {
       const ageHours = mostRecentFetch
         ? Math.round((Date.now() - mostRecentFetch.getTime()) / 3_600_000)
         : null;
@@ -126,26 +126,26 @@ app.use((req, res, next) => {
       log(`Iniciando fetch de startup: ${reason}`, "rss");
       fetchAllRSS().then(() => log("Fetch de startup concluído", "rss")).catch(err => log(`Erro no fetch de startup: ${err}`, "rss"));
     } else {
-      const ageHours = Math.round((Date.now() - mostRecentFetch.getTime()) / 3_600_000);
-      const nextFetch = new Date(mostRecentFetch.getTime() + 24 * 60 * 60 * 1000);
-      log(`Fetch não necessário no startup. Último há ${ageHours}h. Próximo: ${nextFetch.toISOString()}`, "rss");
+      const ageMinutes = Math.round((Date.now() - mostRecentFetch.getTime()) / 60_000);
+      const nextFetch = new Date(mostRecentFetch.getTime() + 1 * 60 * 60 * 1000);
+      log(`Fetch não necessário no startup. Último há ${ageMinutes}min. Próximo: ${nextFetch.toISOString()}`, "rss");
     }
   } catch (err) {
     log(`Erro ao verificar último fetch no startup: ${err}`, "rss");
   }
 
-  log("RSS auto-refresh configurado: a cada 24h ou pelo botão de refresh", "rss");
+  log("RSS auto-refresh configurado: a cada 1h ou pelo botão de refresh", "rss");
 
-  // Periodic refresh every 24 hours (safety net for long-running instances)
+  // Periodic refresh every 1 hour (safety net for long-running instances)
   setInterval(async () => {
-    log("Starting periodic news refresh (24h interval)...", "rss");
+    log("Starting periodic news refresh (1h interval)...", "rss");
     try {
       await fetchAllRSS();
       log("Periodic news refresh completed", "rss");
     } catch (error) {
       log(`Error in periodic news refresh: ${error}`, "rss");
     }
-  }, 24 * 60 * 60 * 1000); // 24 hours
+  }, 1 * 60 * 60 * 1000); // 1 hour
 
   await registerRoutes(httpServer, app);
 

@@ -110,6 +110,7 @@ async function verifySentinela(title: string, content: string): Promise<{
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
+      config: { thinkingConfig: { thinkingBudget: 0 } },
       contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
     });
 
@@ -224,6 +225,7 @@ Responda apenas com o JSON.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
+      config: { thinkingConfig: { thinkingBudget: 0 } },
       contents: prompt,
     });
 
@@ -260,7 +262,7 @@ function calculateReliability(sourceType: "official" | "media" | "blog"): {
   } else if (sourceType === "media") {
     return {
       reliability: "medium",
-      whyReliable: "Reportado por veículo de imprensa, aguardando confirmação oficial."
+      whyReliable: "Verificada pelo Sentinela IA. Publicada por veículo de grande imprensa."
     };
   } else {
     return {
@@ -410,6 +412,7 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
             const translatePrompt = `Traduza este texto para português brasileiro de forma simples e direta (máximo 300 palavras):\n\n${content.slice(0, 800)}`;
             const translateResponse = await ai.models.generateContent({
               model: "gemini-2.5-flash",
+              config: { thinkingConfig: { thinkingBudget: 0 } },
               contents: translatePrompt,
             });
             
