@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import type { Source as DBSource, UserPreferences as DBUserPreferences } from "@shared/schema";
 import { CATEGORIES, getAllThemeIds } from "@shared/categories";
 import { api, type RefreshProgress } from "./api";
+import { useAuth } from "./auth";
 
 export type ReliabilityLevel = "high" | "medium" | "low" | "investigating";
 export type AlertLevel = "critical" | "warning" | "info";
@@ -32,8 +33,6 @@ export interface NewsItem {
 
 export { CATEGORIES, getAllThemeIds };
 
-const USER_ID = "default-user";
-
 interface StoreContextType {
   preferences: UserPreferences;
   feed: NewsItem[];
@@ -62,16 +61,17 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 const ITEMS_PER_PAGE = 3;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const allThemes = getAllThemeIds();
   
   const [preferences, setPreferences] = useState<UserPreferences>({
-    id: USER_ID,
+    id: "",
     selectedTags: [...allThemes],
     region: "",
     sensitivity: "all",
     textSize: "normal",
     highContrast: false,
-    onboardingCompleted: true, // Default to true to prevent initial flicker/redirect
+    onboardingCompleted: true,
     updatedAt: new Date(),
   });
 
@@ -113,21 +113,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }));
 
   useEffect(() => {
+    if (!user?.id) return;
     const loadPrefs = async () => {
       try {
-        const prefs = await api.getPreferences(USER_ID);
+        const prefs = await api.getPreferences(user.id);
         if (prefs) {
           setPreferences(prefs);
         } else {
-          // If no prefs found, it's a new user, so onboarding is needed
-          setPreferences(prev => ({ ...prev, onboardingCompleted: false }));
+          // New user: save defaults immediately — all themes selected, skip onboarding
+          const defaults: UserPreferences = {
+            id: user.id,
+            selectedTags: [...allThemes],
+            region: "",
+            sensitivity: "all",
+            textSize: "normal",
+            highContrast: false,
+            onboardingCompleted: true,
+            updatedAt: new Date(),
+          };
+          setPreferences(defaults);
+          await api.savePreferences(defaults);
         }
       } catch (error) {
         console.error("Failed to load preferences:", error);
       }
     };
     loadPrefs();
-  }, []);
+  }, [user?.id]);
 
   const loadNews = async (themes?: string[]) => {
     setIsLoading(true);
@@ -201,20 +213,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
       
       try {
-        if (preferences.selectedTags.length === 0) {
-          setFeed([]);
-          const sourcesData = await api.getSources();
-          setSources(sourcesData);
-          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
-        } else {
-          const [newsData, sourcesData] = await Promise.all([
-            api.getNews(preferences.selectedTags),
-            api.getSources()
-          ]);
-          setFeed(newsData as NewsItem[]);
-          setSources(sourcesData);
-          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
-        }
+        const tagsParam = preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined;
+        const [newsData, sourcesData] = await Promise.all([
+          api.getNews(tagsParam),
+          api.getSources()
+        ]);
+        setFeed(newsData as NewsItem[]);
+        setSources(sourcesData);
+        setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
       } catch (error) {
         console.error("Failed to load initial data:", error);
         setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro" });
