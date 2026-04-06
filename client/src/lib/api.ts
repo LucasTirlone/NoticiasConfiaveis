@@ -33,6 +33,7 @@ export const api = {
   // Sources
   async getSources(): Promise<Source[]> {
     const res = await fetch(`${API_BASE}/sources`);
+    if (res.status === 403) return [];
     if (!res.ok) throw new Error("Failed to fetch sources");
     return res.json();
   },
