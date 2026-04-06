@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth";
 
 export default function Feed() {
   const { 
@@ -24,6 +25,7 @@ export default function Feed() {
     feed
   } = useStore();
   
+  const { isAdmin } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
@@ -86,21 +88,23 @@ export default function Feed() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-primary uppercase tracking-wider hidden sm:inline">
-                Atualizar Notícias
-              </span>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-12 w-12 shrink-0 border-primary/30 hover:bg-primary/10"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                data-testid="refresh-button"
-              >
-                <RefreshCw className={`w-6 h-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-primary uppercase tracking-wider hidden sm:inline">
+                  Atualizar Notícias
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-12 w-12 shrink-0 border-primary/30 hover:bg-primary/10"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  data-testid="refresh-button"
+                >
+                  <RefreshCw className={`w-6 h-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            )}
           </div>
         </motion.section>
 
@@ -247,14 +251,16 @@ export default function Feed() {
                   <p className="text-lg">
                     Nenhuma notícia encontrada para os temas selecionados nos últimos 7 dias.
                   </p>
-                  <Button 
-                    variant="link" 
-                    onClick={handleRefresh} 
-                    className="mt-2 text-lg" 
-                    data-testid="refresh-empty-button"
-                  >
-                    Atualizar notícias
-                  </Button>
+                  {isAdmin && (
+                    <Button 
+                      variant="link" 
+                      onClick={handleRefresh} 
+                      className="mt-2 text-lg" 
+                      data-testid="refresh-empty-button"
+                    >
+                      Atualizar notícias
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

@@ -27,9 +27,24 @@ async function verifyPassword(supplied: string, stored: string): Promise<boolean
   }
 }
 
+const ADMIN_EMAIL = "lucastirlone@gmail.com";
+
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!req.session?.userId) {
     res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+  next();
+}
+
+async function requireAdmin(req: Request, res: Response, next: () => void) {
+  if (!req.session?.userId) {
+    res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+  const user = await storage.getUser(req.session.userId);
+  if (!user || user.email !== ADMIN_EMAIL) {
+    res.status(403).json({ message: "Acesso restrito ao administrador" });
     return;
   }
   next();
@@ -178,7 +193,7 @@ export async function registerRoutes(
   });
 
   // ===== SOURCES =====
-  app.get("/api/sources", async (req, res) => {
+  app.get("/api/sources", requireAdmin, async (req, res) => {
     try {
       const sources = await storage.getAllSources();
       res.json(sources);
@@ -187,7 +202,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sources", async (req, res) => {
+  app.post("/api/sources", requireAdmin, async (req, res) => {
     try {
       const validated = insertSourceSchema.parse(req.body);
       
@@ -225,7 +240,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/sources/:id", async (req, res) => {
+  app.delete("/api/sources/:id", requireAdmin, async (req, res) => {
     try {
       await storage.deleteSource(req.params.id);
       res.status(204).send();
@@ -265,7 +280,7 @@ export async function registerRoutes(
     res.json(refreshProgress);
   });
 
-  app.post("/api/refresh-feed", async (req, res) => {
+  app.post("/api/refresh-feed", requireAdmin, async (req, res) => {
     try {
       const allSources = await storage.getAllSources();
       const sourcesWithRSS = allSources.filter(s => s.rssUrl);
@@ -297,7 +312,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/refresh-source/:id", async (req, res) => {
+  app.post("/api/refresh-source/:id", requireAdmin, async (req, res) => {
     try {
       await fetchRSSFromSource(req.params.id);
       res.json({ success: true, message: "Source refreshed successfully" });

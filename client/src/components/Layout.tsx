@@ -19,7 +19,7 @@ import generatedIcon from "@assets/generated_images/app_icon_showing_a_shield_wi
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { preferences, updatePreferences, refreshFeed, isLoading } = useStore();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
 
   const isHighContrast = preferences.highContrast;
   const textSize = preferences.textSize;
@@ -69,19 +69,21 @@ export function Layout({ children }: { children: ReactNode }) {
         </Link>
 
         <div className="flex items-center gap-1.5">
-          {/* Refresh Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRefreshFeed}
-            disabled={isLoading}
-            className="text-muted-foreground hover:text-primary w-9 h-9"
-            title="Atualizar notícias"
-            data-testid="button-refresh-feed"
-            aria-label="Atualizar notícias"
-          >
-            <RefreshCw className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} />
-          </Button>
+          {/* Refresh Button — admin only */}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefreshFeed}
+              disabled={isLoading}
+              className="text-muted-foreground hover:text-primary w-9 h-9"
+              title="Atualizar notícias"
+              data-testid="button-refresh-feed"
+              aria-label="Atualizar notícias"
+            >
+              <RefreshCw className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
+          )}
 
           {/* Text / Accessibility Settings */}
           <DropdownMenu>
@@ -186,16 +188,18 @@ export function Layout({ children }: { children: ReactNode }) {
           <span className="text-[11px] font-semibold">Início</span>
         </Link>
 
-        <Link
-          href="/sources"
-          className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all cursor-pointer ${location === "/sources" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-          data-testid="link-sources"
-          aria-label="Fontes"
-          aria-current={location === "/sources" ? "page" : undefined}
-        >
-          <List className={`w-6 h-6 ${location === "/sources" ? "fill-primary/20" : ""}`} />
-          <span className="text-[11px] font-semibold">Fontes</span>
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/sources"
+            className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all cursor-pointer ${location === "/sources" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            data-testid="link-sources"
+            aria-label="Fontes"
+            aria-current={location === "/sources" ? "page" : undefined}
+          >
+            <List className={`w-6 h-6 ${location === "/sources" ? "fill-primary/20" : ""}`} />
+            <span className="text-[11px] font-semibold">Fontes</span>
+          </Link>
+        )}
 
         <Link
           href="/settings"

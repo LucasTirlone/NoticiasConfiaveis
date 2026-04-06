@@ -2,7 +2,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Globe, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -13,11 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 
 const SOURCES_PER_PAGE = 10;
 
 export default function Sources() {
   const { sources, refreshFeed } = useStore();
+  const { isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setLocation("/");
+    }
+  }, [isAdmin, setLocation]);
+
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"official" | "media" | "blog">("media");
@@ -72,6 +83,8 @@ export default function Sources() {
       toast.error("Erro ao remover fonte");
     }
   };
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-6">

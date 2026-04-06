@@ -7,8 +7,11 @@ export interface AuthUser {
   displayName: string | null;
 }
 
+const ADMIN_EMAIL = "lucastirlone@gmail.com";
+
 interface AuthContextValue {
   user: AuthUser | null;
+  isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, displayName: string, password: string) => Promise<void>;
@@ -70,8 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLocation("/login");
   };
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
