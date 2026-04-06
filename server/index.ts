@@ -9,6 +9,11 @@ import { pool } from "../db/index";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust Replit's reverse proxy so req.secure = true for HTTPS connections.
+// Without this, express-session refuses to set Secure cookies (they never
+// reach the browser), making every authenticated request return 401.
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
