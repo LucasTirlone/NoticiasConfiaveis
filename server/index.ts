@@ -93,7 +93,7 @@ app.use((req, res, next) => {
   const { storage } = await import("./storage");
 
   // On startup, check the DB to see when news was last fetched.
-  // If it has been more than 24h (or never), trigger a fetch immediately.
+  // If it has been more than 1h (or never), trigger a fetch immediately.
   // This fixes the setInterval-only approach which resets on every server restart.
   try {
     const allSources = await storage.getAllSources();
