@@ -374,9 +374,7 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
           .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
           .filter(Boolean) as string[];
         
-        const finalTags = newTagIds.length > 0 
-          ? Array.from(new Set([...newsItem.tags, ...newTagIds]))
-          : newsItem.tags;
+        const finalTags = newTagIds.length > 0 ? newTagIds : newsItem.tags;
         
         // Sempre atualizar o ai_summary com o resumo da IA
         await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
