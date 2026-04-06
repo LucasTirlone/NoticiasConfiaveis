@@ -269,33 +269,28 @@ export async function registerRoutes(
     try {
       const allSources = await storage.getAllSources();
       const sourcesWithRSS = allSources.filter(s => s.rssUrl);
-      
-      let totalNewsCount = 0;
-      refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Iniciando...", newsCount: 0 };
-      
-      for (let i = 0; i < sourcesWithRSS.length; i++) {
-        refreshProgress = { 
-          current: i + 1, 
-          total: sourcesWithRSS.length, 
-          status: "loading", 
-          message: `Buscando: ${sourcesWithRSS[i].name}`,
-          newsCount: totalNewsCount
-        };
-        
-        await fetchRSSFromSource(sourcesWithRSS[i].id, (stats) => {
-          totalNewsCount += stats.count;
-          refreshProgress.newsCount = totalNewsCount;
-        });
+
+      refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Buscando notícias em paralelo...", newsCount: 0 };
+
+      const started = await fetchAllRSS();
+
+      if (!started) {
+        refreshProgress = { current: sourcesWithRSS.length, total: sourcesWithRSS.length, status: "complete", message: "Atualização já em andamento.", newsCount: 0 };
+        return res.json({ success: true, message: "Refresh already in progress" });
       }
-      
-      refreshProgress = { 
-        current: sourcesWithRSS.length, 
-        total: sourcesWithRSS.length, 
-        status: "complete", 
-        message: `Concluído! ${totalNewsCount} novas notícias.`,
-        newsCount: totalNewsCount
+
+      const allNews = await storage.getAllNewsItems();
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentCount = allNews.filter(n => new Date(n.timestamp) >= sevenDaysAgo).length;
+
+      refreshProgress = {
+        current: sourcesWithRSS.length,
+        total: sourcesWithRSS.length,
+        status: "complete",
+        message: `Concluído! ${recentCount} notícias nos últimos 7 dias.`,
+        newsCount: recentCount
       };
-      res.json({ success: true, message: "Feed refreshed successfully", newsCount: totalNewsCount });
+      res.json({ success: true, message: "Feed refreshed successfully", newsCount: recentCount });
     } catch (error) {
       refreshProgress = { current: 0, total: 0, status: "error", message: "Erro ao atualizar", newsCount: 0 };
       res.status(500).json({ error: "Failed to refresh feed" });

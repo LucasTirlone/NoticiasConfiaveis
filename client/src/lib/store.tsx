@@ -87,14 +87,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   const now = new Date();
-  const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   
   const filteredFeed = feed.filter(item => {
     const itemDate = new Date(item.timestamp);
-    // Real-time filtering by selected tags
     const matchesTags = preferences.selectedTags.length === 0 || 
                        item.tags.some(tag => preferences.selectedTags.includes(tag));
-    return itemDate >= seventyTwoHoursAgo && matchesTags;
+    return itemDate >= sevenDaysAgo && matchesTags;
   });
 
   // Reset page when filters change

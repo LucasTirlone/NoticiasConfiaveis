@@ -80,7 +80,7 @@ export default function Feed() {
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   {feed.length > 0 
-                    ? `${feed.length} alertas nas últimas 72h`
+                    ? `${feed.length} alertas nos últimos 7 dias`
                     : "Selecione filtros para ver notícias"
                   }
                 </p>
@@ -245,7 +245,7 @@ export default function Feed() {
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <p className="text-lg">
-                    Nenhuma notícia encontrada para os temas selecionados nas últimas 72 horas.
+                    Nenhuma notícia encontrada para os temas selecionados nos últimos 7 dias.
                   </p>
                   <Button 
                     variant="link" 

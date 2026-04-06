@@ -42,7 +42,8 @@ Preferred communication style: Simple, everyday language.
 - **Path Aliases**: `@/*` for client source, `@shared/*` for shared code, `@assets` for attached assets
 - **Type Safety**: Drizzle-zod for schema validation, shared types between frontend and backend
 - **RSS Aggregation**: Server-side RSS parsing with automatic tag extraction and reliability calculation
-- **Parallel RSS Fetching**: `p-limit` (concurrency=5) used in `fetchAllRSS()` to reduce fetch time from ~10min to ~2min
+- **Parallel RSS Fetching**: `p-limit` (concurrency=5) used in `fetchAllRSS()` to reduce fetch time from ~10min to ~2min; manual refresh button also uses `fetchAllRSS()` (was sequential before)
+- **7-day display window**: News items visible for 7 days from publication date (was 72h)
 - **Auth System**: Session-based auth (express-session + memorystore), password hashing via Node.js `crypto.scrypt`, `/api/auth/register|login|logout|me` endpoints, React `AuthContext`/`useAuth` hook
 - **Auth Flow**: Unauthenticated users are redirected to `/login`; after login, onboarding check runs; `AuthProvider` wraps `StoreProvider` in App.tsx
 
