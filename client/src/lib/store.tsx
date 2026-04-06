@@ -115,27 +115,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
     const loadPrefs = async () => {
+      const defaults: UserPreferences = {
+        id: user.id,
+        selectedTags: [...allThemes],
+        region: "",
+        sensitivity: "all",
+        textSize: "normal",
+        highContrast: false,
+        onboardingCompleted: true,
+        updatedAt: new Date(),
+      };
       try {
         const prefs = await api.getPreferences(user.id);
         if (prefs) {
           setPreferences(prefs);
         } else {
-          // New user: save defaults immediately — all themes selected, skip onboarding
-          const defaults: UserPreferences = {
-            id: user.id,
-            selectedTags: [...allThemes],
-            region: "",
-            sensitivity: "all",
-            textSize: "normal",
-            highContrast: false,
-            onboardingCompleted: true,
-            updatedAt: new Date(),
-          };
           setPreferences(defaults);
           await api.savePreferences(defaults);
         }
       } catch (error) {
         console.error("Failed to load preferences:", error);
+        setPreferences(defaults);
       }
     };
     loadPrefs();
@@ -207,24 +207,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const initialLoad = async () => {
       setIsLoading(true);
       setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
-      
+
       try {
         const tagsParam = preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined;
-        const [newsData, sourcesData] = await Promise.all([
-          api.getNews(tagsParam),
-          api.getSources()
-        ]);
+        const newsData = await api.getNews(tagsParam);
         setFeed(newsData as NewsItem[]);
-        setSources(sourcesData);
         setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
       } catch (error) {
-        console.error("Failed to load initial data:", error);
-        setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro" });
+        console.error("Failed to load news:", error);
+        setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao carregar notícias" });
       } finally {
         setIsLoading(false);
         setTimeout(() => {
           setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
         }, 1500);
+      }
+
+      // Sources are admin-only — load independently so a failure here never blocks news
+      try {
+        const sourcesData = await api.getSources();
+        setSources(sourcesData);
+      } catch (error) {
+        console.error("Failed to load sources:", error);
       }
     };
     initialLoad();
