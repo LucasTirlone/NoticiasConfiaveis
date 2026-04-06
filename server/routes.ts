@@ -250,7 +250,10 @@ export async function registerRoutes(
   });
 
   // ===== USER PREFERENCES =====
-  app.get("/api/preferences/:id", async (req, res) => {
+  app.get("/api/preferences/:id", requireAuth, async (req, res) => {
+    if (req.session.userId !== req.params.id) {
+      return res.status(403).json({ error: "Acesso negado" });
+    }
     try {
       const prefs = await storage.getUserPreferences(req.params.id);
       if (!prefs) {
@@ -262,9 +265,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/preferences", async (req, res) => {
+  app.post("/api/preferences", requireAuth, async (req, res) => {
     try {
       const validated = insertUserPreferencesSchema.parse(req.body);
+      if (validated.id !== req.session.userId) {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
       const prefs = await storage.createOrUpdateUserPreferences(validated);
       res.json(prefs);
     } catch (error) {

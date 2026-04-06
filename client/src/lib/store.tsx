@@ -145,11 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const tagsToUse = themes || preferences.selectedTags;
-      if (tagsToUse.length === 0) {
-        setFeed([]);
-        return;
-      }
-      const newsData = await api.getNews(tagsToUse);
+      const newsData = await api.getNews(tagsToUse.length > 0 ? tagsToUse : undefined);
       setFeed(newsData as NewsItem[]);
       setCurrentPage(1);
     } catch (error) {
