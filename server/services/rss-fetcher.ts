@@ -20,9 +20,10 @@ Use estas categorias como guia. Se a notícia não se encaixar aqui, rejeite.
 
 1.  **FENÔMENOS NATURAIS:** Terremoto, Tsunami, Vulcão, Ciclone/Furacão, Tornado, Chuva Severa/Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo/Nevasca, Granizo, Maré Alta/Ressaca.
 2.  **ESPAÇO & ASTRONOMIA:** Tempestade Solar/Geomagnética, Aurora Boreal, Eclipse, Asteroide/Meteoro (NEO), Lixo Espacial (Reentrada).
-3.  **RISCOS BIOLÓGICOS & AMBIENTAIS:** Epidemia/Vírus (Surtos Novos), Incêndio (Florestal ou Grande Escala), Poluição Tóxica/Radiação.
+3.  **RISCOS BIOLÓGICOS & AMBIENTAIS:** Epidemia/Vírus (Surtos Novos em humanos), Incêndio (Florestal ou Grande Escala), Poluição Tóxica/Radiação.
 4.  **RISCOS TECNOLÓGICOS:** Colapso Estrutural (Barragens/Pontes), Apagão (Blackout massivo), Acidente de Transporte (Massa/Aéreo), Ciberataque (Infraestrutura).
 5.  **GEOPOLÍTICA & CONFLITOS:** Guerra/Invasão, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática Grave (Ruptura).
+6.  **POLÍTICA & ECONOMIA:** Crise Econômica (Recessão/Crash/Colapso bancário), Eleições Polêmicas (Fraude/Disputas graves/Impeachment), Guerras Tarifárias/Acordos Comerciais de Grande Impacto, Escândalos de Corrupção de Alto Nível, Protestos Massivos/Greve Geral.
 
 ---
 
@@ -142,6 +143,10 @@ const PORTUGUESE_SOURCE_EXACT_NAMES = [
   'bbc news brasil',
   'g1 - globo',
   'onu news (nações unidas - em português)',
+  'uol - folha',
+  'uol notícias',
+  'folha de s.paulo',
+  'folha de são paulo',
 ];
 
 function isPortugueseSource(sourceName: string): boolean {
@@ -167,6 +172,15 @@ async function generateAiSummary(title: string, content: string, sourceName: str
 
     const isPortuguese = isPortugueseSource(sourceName);
 
+    const TEMAS_POR_CATEGORIA = `Categorias e temas disponíveis (escolha apenas temas cujo evento central da notícia pertença à categoria indicada):
+
+• FENÔMENOS NATURAIS (desastres geofísicos e climáticos — origem natural, não conflito): Terremoto | Tsunami | Vulcão | Ciclone / Furacão | Tornado | Chuva Severa / Enchente | Deslizamento | Seca Extrema | Onda de Calor | Frio Extremo / Nevasca | Granizo | Maré Alta / Ressaca
+• ESPAÇO & ASTRONOMIA (fenômenos de origem espacial): Tempestade Solar / Geomagnética | Aurora Boreal | Eclipse | Asteroide / Meteoro | Lixo Espacial
+• RISCOS BIOLÓGICOS & AMBIENTAIS (saúde coletiva humana e danos ambientais — não conflitos): Epidemia / Vírus | Incêndio | Poluição Tóxica / Radiação
+• RISCOS TECNOLÓGICOS (falhas em infraestrutura crítica): Colapso Estrutural | Apagão | Acidente de Transporte | Ciberataque
+• GEOPOLÍTICA & CONFLITOS (ações militares e diplomáticas): Guerra / Conflito | Golpe de Estado | Terrorismo | Ameaça Nuclear | Crise Diplomática
+• POLÍTICA & ECONOMIA (impactos econômicos e políticos de grande escala): Crise Econômica | Eleições e Democracia | Tarifas e Comércio | Corrupção e Governança | Protestos e Greves`;
+
     const prompt = isPortuguese
       ? `Você é um jornalista brasileiro especializado em criar resumos claros e acessíveis.
 
@@ -182,10 +196,9 @@ Crie um resumo claro e simples do conteúdo.
 - Responda: O que? Onde? Quando? Por quê é importante?
 
 # TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto.
-**ATENÇÃO CRÍTICA**: Se a notícia não tratar de desastres, crises globais ou fenômenos científicos, não tente forçar uma categoria.
+Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
 
-Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Chuva Severa / Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo / Nevasca, Granizo, Maré Alta / Ressaca, Tempestade Solar / Geomagnética, Aurora Boreal, Eclipse, Asteroide / Meteoro, Lixo Espacial, Epidemia / Vírus, Incêndio, Poluição Tóxica / Radiação, Colapso Estrutural, Apagão, Acidente de Transporte, Ciberataque, Guerra / Conflito, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática.
+${TEMAS_POR_CATEGORIA}
 
 Retorne no seguinte formato JSON:
 {
@@ -209,10 +222,9 @@ Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muit
 - Responda: O que? Onde? Quando? Por quê é importante?
 
 # TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto.
-**ATENÇÃO CRÍTICA**: Se a notícia não tratar de desastres, crises globais ou fenômenos científicos, não tente forçar uma categoria. Escolha apenas temas que realmente descrevam o fato.
+Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
 
-Temas disponíveis: Terremoto, Tsunami, Vulcão, Ciclone / Furacão, Tornado, Chuva Severa / Enchente, Deslizamento, Seca Extrema, Onda de Calor, Frio Extremo / Nevasca, Granizo, Maré Alta / Ressaca, Tempestade Solar / Geomagnética, Aurora Boreal, Eclipse, Asteroide / Meteoro, Lixo Espacial, Epidemia / Vírus, Incêndio, Poluição Tóxica / Radiação, Colapso Estrutural, Apagão, Acidente de Transporte, Ciberataque, Guerra / Conflito, Golpe de Estado, Terrorismo, Ameaça Nuclear, Crise Diplomática.
+${TEMAS_POR_CATEGORIA}
 
 Retorne no seguinte formato JSON:
 {
@@ -279,7 +291,26 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
   console.log(`\n--- Iniciando busca na fonte: ${source.name} ---`);
 
   try {
-    const feed = await parser.parseURL(source.rssUrl);
+    // Fetch with explicit encoding detection to handle feeds that use
+    // ISO-8859-1 / Latin-1 (common in some Brazilian news sources like UOL)
+    let feed: Awaited<ReturnType<typeof parser.parseURL>>;
+    try {
+      const response = await fetch(source.rssUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; SentinelaIA/1.0)" },
+      });
+      const buffer = await response.arrayBuffer();
+      const uint8 = new Uint8Array(buffer);
+      // Peek at the first 300 bytes to detect encoding declaration in XML header
+      const peek = new TextDecoder("utf-8", { fatal: false }).decode(uint8.slice(0, 300));
+      const xmlEncMatch = peek.match(/encoding=["']([^"']+)["']/i);
+      const ctEncMatch = (response.headers.get("content-type") || "").match(/charset=([^\s;]+)/i);
+      const encoding = xmlEncMatch?.[1] || ctEncMatch?.[1] || "utf-8";
+      const xmlText = new TextDecoder(encoding).decode(uint8);
+      feed = await parser.parseString(xmlText);
+    } catch {
+      // Fallback to direct URL parsing if custom fetch fails
+      feed = await parser.parseURL(source.rssUrl);
+    }
     console.log(`Sucesso ao conectar com ${source.name}. Itens encontrados: ${feed.items.length}`);
     
     const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);

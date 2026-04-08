@@ -181,6 +181,38 @@ export const CATEGORIES: Category[] = [
         keywords: ["crise diplomática", "rompimento de relações diplomáticas", "expulsão de embaixadores", "fechamento de fronteira", "sanções econômicas severas", "embargo total", "mobilização de tropas", "diplomatic crisis", "sanctions", "embargo"]
       }
     ]
+  },
+  {
+    id: "politics",
+    name: "Política & Economia",
+    icon: "📊",
+    themes: [
+      {
+        id: "crise_economica",
+        name: "Crise Econômica",
+        keywords: ["recessão", "colapso econômico", "crash financeiro", "crise bancária", "inflação extrema", "colapso da bolsa", "queda do PIB", "recession", "financial crisis", "market crash", "bank collapse", "economic collapse", "hyperinflation"]
+      },
+      {
+        id: "eleicoes_democracia",
+        name: "Eleições e Democracia",
+        keywords: ["fraude eleitoral", "eleição contestada", "crise democrática", "impeachment", "destituição", "cassação de mandato", "election fraud", "contested election", "democratic crisis", "coup attempt", "electoral fraud"]
+      },
+      {
+        id: "tarifas_comercio",
+        name: "Tarifas e Comércio",
+        keywords: ["guerra comercial", "tarifa de importação", "tarifa aduaneira", "guerra tarifária", "acordo comercial", "trade war", "import tariff", "trade deal", "trade dispute", "customs duty", "protectionism"]
+      },
+      {
+        id: "corrupcao_governanca",
+        name: "Corrupção e Governança",
+        keywords: ["corrupção governamental", "escândalo político", "desvio de verba pública", "lavagem de dinheiro", "superfaturamento", "corruption scandal", "bribery", "money laundering", "political scandal", "embezzlement"]
+      },
+      {
+        id: "protestos_sociais",
+        name: "Protestos e Greves",
+        keywords: ["greve geral", "protesto massivo", "manifestação de massa", "revolta popular", "desobediência civil", "general strike", "mass protest", "civil unrest", "riot", "uprising", "demonstration"]
+      }
+    ]
   }
 ];
 

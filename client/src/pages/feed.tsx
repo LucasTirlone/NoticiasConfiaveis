@@ -108,7 +108,7 @@ export default function Feed() {
           </div>
         </motion.section>
 
-        <section className="bg-card border rounded-2xl p-5 space-y-4">
+        <section className="bg-card border rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-muted-foreground" />
@@ -141,7 +141,7 @@ export default function Feed() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {CATEGORIES.map(category => {
               const isExpanded = expandedCategories.includes(category.id);
               const isFullySelected = isCategoryFullySelected(category.id);
@@ -156,8 +156,8 @@ export default function Feed() {
                     onClick={() => toggleCategoryExpand(category.id)}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{category.icon}</span>
-                      <span className="font-medium">{category.name}</span>
+                      <span className="text-base">{category.icon}</span>
+                      <span className="text-sm font-normal">{category.name}</span>
                       <span className="text-xs text-muted-foreground">
                         ({category.themes.filter(t => preferences.selectedTags.includes(t.id)).length}/{category.themes.length})
                       </span>
@@ -187,7 +187,7 @@ export default function Feed() {
                             <button
                               key={theme.id}
                               onClick={() => toggleTheme(theme.id)}
-                              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                              className={`px-2.5 py-1 rounded-full text-xs font-normal transition-all ${
                                 isActive 
                                   ? 'bg-primary text-primary-foreground shadow-sm' 
                                   : 'bg-muted hover:bg-muted/80 text-muted-foreground'
