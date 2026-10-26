@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "dotIM38sfclHeq7lrdHB-"
+uri = "file://generated-artifacts/gemini-comparison-real/report.html"
+type = "html"
+title = "Gemini 2.5 Flash × 3.5 Flash-Lite — notícias reais"
+description = "12 notícias reais, 48 chamadas, notas, tempos, fontes e respostas completas. Sem alteração do modelo padrão."
+logical_id = "6a4686bb-ef15-4658-8439-b11b0fb1e11e"
+content_hash = "sha256:a5c459868086b0ddf289545fdc5b90e5310eb8e15a58ae8bc3b6214b5b52beda"
+size = 68916
+mtime_ms = 1793058223661
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/6a4686bb-ef15-4658-8439-b11b0fb1e11e/7198ac18-ade8-429d-8f08-ff0cc342ac43"
+storage_version_token = "1793058283361494"
+content_type = "text/html"
