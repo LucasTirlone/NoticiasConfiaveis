@@ -1,0 +1,1 @@
+- [Package firewall recovery](package-firewall.md) — parent upgrades can retain blocked transitive versions from the lockfile.
