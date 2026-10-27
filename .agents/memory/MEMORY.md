@@ -1,4 +1,0 @@
-- [Managed AI access](managed-ai-access.md) — Catalogs do not prove managed access; successful small requests do not establish sustained batch capacity.
-- [Model evaluation data](model-evaluation.md) — Use real publisher material and preserve provenance; historical full_content may contain AI summaries rather than source text.
-- [News publication policy](news-publication-policy.md) — Fail closed on unverified summaries/tags; model upgrades are authorized per role, not globally.
-- [Post-merge safety](post-merge-safety.md) — Keep setup offline and separate from news reviews; validate clean installs because existing dependencies can hide firewall blocks.
