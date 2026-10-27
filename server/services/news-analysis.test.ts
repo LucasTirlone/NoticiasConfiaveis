@@ -86,7 +86,7 @@ test("a real quote does not bypass semantic review; invented rescue and bad audi
   await assert.rejects(()=>analyzeNews(source,mockCall({audit:JSON.stringify({aprovado:"true",motivo:"inválido"})}).call));
 });
 
-test("real Nigeria headline keeps armed conflict and drops incidental fires",async()=>{
+test("Nigeria story is classified by the full event context, not the word fire",async()=>{
   // Headline and excerpt transcribed from the user's screenshot; the screenshot did not include its URL.
   const nigeria={
     title:"Número de mortos em ataque de homens armados no nordeste da Nigéria sobe para 62",
@@ -102,16 +102,46 @@ test("real Nigeria headline keeps armed conflict and drops incidental fires",asy
     {id:"conflito_guerra",trecho_fonte:"ataque de homens armados no nordeste da Nigéria"},
     {id:"incendio",trecho_fonte:"Os atacantes atearam fogo em casas, lojas e suprimentos de alimentos."},
   ]};
-  const {call,prompts}=mockCall({summary:nigeriaSummary,themes:classificationWithIncidentalFire});
+  const conflictOnly={temas:[classificationWithIncidentalFire.temas[0]]};
+  const {call,prompts}=mockCall({summary:nigeriaSummary,themes:conflictOnly});
   const result=await analyzeNews(nigeria,call);
   assert.deepEqual(result?.themes,["conflito_guerra"]);
-  assert.match(buildThemePrompt(nigeria),/Cada citação literal contínua\s+de evidência deve vir do título/);
-  assert.match(prompts.at(-1)??"",/"id":"conflito_guerra"/);
-  assert.doesNotMatch(prompts.at(-1)??"",/"id":"incendio","trecho_fonte"/);
-  assert.throws(
-    ()=>validateDraft({...nigeriaSummary,temas:[classificationWithIncidentalFire.temas[1]]},nigeria),
-    /Evidência de tema não aparece no título/,
-  );
+  const themePrompt=prompts.find(prompt=>prompt.startsWith("Classifique"))??"";
+  assert.match(themePrompt,/conteúdo completo/);
+  assert.match(themePrompt,/casas incendiadas durante um ataque/);
+  assert.match(themePrompt,/ação secundária/);
+  assert.match(themePrompt,/não deve ser uma citação que apenas contenha uma palavra-chave/);
+  assert.match(themePrompt,/Cada tema precisa de um trecho literal/);
+  assert.doesNotMatch(themePrompt,/deve vir do título/);
+  assert.match(themePrompt,/"id":"incendio","nome":"Incêndio","criterio":"[^"]+ação secundária/);
+  assert.equal(validateDraft({...nigeriaSummary,temas:[classificationWithIncidentalFire.temas[1]]},nigeria)
+    .temas[0].id,"incendio"); // text citation is grounded; centrality is the semantic review's job
+});
+
+test("semantic audit rejects incidental fire when conflict is the central event",async()=>{
+  const nigeria={
+    title:"Número de mortos em ataque de homens armados no nordeste da Nigéria sobe para 62",
+    content:"O número de mortos em um ataque de homens armados no nordeste da Nigéria subiu para 62. "+
+      "Os atacantes atearam fogo em casas e lojas.",
+    isPortuguese:true,
+  };
+  const nigeriaSummary={
+    fatos:[{texto:"O número de mortos no ataque subiu para 62.",trecho_fonte:"O número de mortos em um ataque de homens armados no nordeste da Nigéria subiu para 62."}],
+  };
+  const badAudit=JSON.stringify({aprovado:false,motivo:"Incêndio é detalhe incidental do ataque."});
+  const {call,prompts}=mockCall({
+    summary:nigeriaSummary,
+    themes:{temas:[
+      {id:"conflito_guerra",trecho_fonte:"ataque de homens armados no nordeste da Nigéria"},
+      {id:"incendio",trecho_fonte:"Os atacantes atearam fogo em casas e lojas."},
+    ]},
+    audit:badAudit,
+  });
+  await assert.rejects(()=>analyzeNews(nigeria,call),/Incêndio é detalhe incidental/);
+  const auditPrompt=prompts.at(-1)??"";
+  assert.match(auditPrompt,/comparando título, conteúdo e critério editorial/);
+  assert.match(auditPrompt,/Incêndio em casas\/lojas durante ataque/);
+  assert.match(auditPrompt,/detalhe incidental/);
 });
 
 test("headline-centered wildfires retain the wildfire theme",async()=>{
@@ -129,6 +159,20 @@ test("headline-centered wildfires retain the wildfire theme",async()=>{
     themes:{temas:[{id:"incendio",trecho_fonte:"Incêndio florestal ameaça casas"}]},
   });
   assert.deepEqual((await analyzeNews(fire,call))?.themes,["incendio"]);
+});
+
+test("a central event supported in the body can be tagged without headline-only evidence",()=>{
+  const article={
+    title:"Autoridades emitem alerta de evacuação no Pará",
+    content:"Um incêndio florestal de grandes proporções avança em direção a comunidades no Pará. "+
+      "Autoridades ordenaram evacuações e equipes combatem as chamas.",
+    isPortuguese:true,
+  };
+  const themedDraft={
+    fatos:[{texto:"Um incêndio florestal avança em direção a comunidades e provoca evacuações.",trecho_fonte:"Um incêndio florestal de grandes proporções avança em direção a comunidades no Pará."}],
+    temas:[{id:"incendio",trecho_fonte:"incêndio florestal de grandes proporções avança em direção a comunidades"}],
+  };
+  assert.deepEqual(validateDraft(themedDraft,article).temas.map(theme=>theme.id),["incendio"]);
 });
 
 test("model schema exposes canonical enum and separates the summary contract from themes",()=>{
