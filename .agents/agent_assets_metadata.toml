@@ -14,3 +14,31 @@ mtime_ms = 1793058223661
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/6a4686bb-ef15-4658-8439-b11b0fb1e11e/7198ac18-ade8-429d-8f08-ff0cc342ac43"
 storage_version_token = "1793058283361494"
 content_type = "text/html"
+
+[[outputs]]
+id = "DqyHKwECsK_etiGzmHeEK"
+uri = "file://generated-artifacts/production-news-review-200/relatorio-revisao-200.html"
+type = "html"
+title = "Revisão das 200 notícias — lote não aplicado"
+description = "102 correções propostas, 98 pendências e nenhuma exclusão aprovada. Inclui backup, evidências, planilha e arquivos de aplicação e restauração para download."
+logical_id = "0de9fce3-ce3a-41c5-90a9-fe3ae418c8f7"
+content_hash = "sha256:62cddbd371362b021c5d3db4a4e100680369061a8149a58fbf521dd66314eff8"
+size = 4069495
+mtime_ms = 1793061245977
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/0de9fce3-ce3a-41c5-90a9-fe3ae418c8f7/bbf7ef8d-ba4f-4d26-9315-cba54e9c781c"
+storage_version_token = "1793061286825808"
+content_type = "text/html"
+
+[[outputs]]
+id = "ubaia-6Y7MrsHnOLvVmv8"
+uri = "file://generated-artifacts/production-news-review-200/resumo-revisao.csv"
+type = "table"
+title = "Planilha da revisão — 200 notícias"
+description = "Resultado individual de cada notícia, temas atuais e propostos, motivos das pendências e links das fontes."
+logical_id = "4c911998-7a6a-4cf6-b626-7cca48ac3b83"
+content_hash = "sha256:cd8b7aa20badf18ddf9efc9f46544ad7eac4ffec9140dd3b0fada21d7536548b"
+size = 76537
+mtime_ms = 1793061245933
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/4c911998-7a6a-4cf6-b626-7cca48ac3b83/240e232a-a178-41fc-8eaf-5e44786c8ec0"
+storage_version_token = "1793061287424600"
+content_type = "text/csv"
