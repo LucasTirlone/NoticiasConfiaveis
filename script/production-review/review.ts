@@ -10,13 +10,18 @@ import {
   buildGenerationPrompt, generationSchema, validateDraft, parseModelJson,
   buildGroundingPrompt, groundingSchema, type NewsInput,
 } from "../../server/services/news-analysis";
-import { DIR, type Row, type Material } from "./source-material";
+import { DIR as DEFAULT_DIR, type Row, type Material } from "./source-material";
 
 const args=process.argv.slice(2);
+const DIR=args.includes("--supplement")?"generated-artifacts/production-news-review-98":DEFAULT_DIR;
 const limitArg=args.find(a=>a.startsWith("--limit="));
 const limit=limitArg?Number(limitArg.split("=")[1]):Infinity;
 const onlyErrors=args.includes("--retry-pending");
 const throttled=args.includes("--throttled");
+const careful=args.includes("--careful");
+const workersArg=args.find(a=>a.startsWith("--workers="));
+const workers=workersArg?Number(workersArg.split("=")[1]):throttled?1:3;
+assert.ok(Number.isInteger(workers)&&workers>=1&&workers<=3);
 const {rows}: {rows:Row[]}=JSON.parse(await fs.readFile(`${DIR}/backup.json`,"utf8"));
 const collected=JSON.parse(await fs.readFile(`${DIR}/materials.json`,"utf8"));
 const materials:Material[]=collected.materials;
@@ -36,7 +41,7 @@ const counts:Record<string,number>={};
 let cursor=0;
 const nextRequestAt=new Map<string,number>();
 const selected=rows.slice(0,limit);
-await Promise.all(Array.from({length:throttled?1:3},async()=>{
+await Promise.all(Array.from({length:workers},async()=>{
   while(cursor<selected.length) {
     const row=selected[cursor++];
     const file=`${DIR}/decisions/${row.id}.json`;
@@ -44,6 +49,11 @@ await Promise.all(Array.from({length:throttled?1:3},async()=>{
       const existing=JSON.parse(await fs.readFile(file,"utf8"));
       if(!onlyErrors||existing.decision!=="pending"||existing.reason==="Fonte original indisponível") {
         counts[existing.decision]=(counts[existing.decision]??0)+1;continue;
+      }
+      // Keep every unsuccessful review, including literal quotes and provider responses.
+      if(args.includes("--supplement")) {
+        await fs.mkdir(`${DIR}/attempts`,{recursive:true});
+        await fs.writeFile(`${DIR}/attempts/${row.id}-${existing.reviewedAt.replaceAll(":","-")}.json`,JSON.stringify(existing,null,2),{flag:"wx"});
       }
     }catch{}
     const material=materials.find(m=>m.id===row.id);
@@ -53,9 +63,10 @@ await Promise.all(Array.from({length:throttled?1:3},async()=>{
       for(let attempt=0;attempt<2;attempt++) {
         try {
           if(throttled) {
-            const wait=Math.max(0,(nextRequestAt.get(model)??0)-Date.now());
+            const due=Math.max(nextRequestAt.get(model)??0,Date.now());
+            const wait=due-Date.now();
+            nextRequestAt.set(model,due+(model===THEME_AI_MODEL?3000:1400));
             if(wait)await new Promise(r=>setTimeout(r,wait));
-            nextRequestAt.set(model,Date.now()+(model===THEME_AI_MODEL?3000:1400));
           }
           const start=performance.now();
           const r=await ai.models.generateContent({model,contents:prompt,config:{
@@ -78,7 +89,7 @@ await Promise.all(Array.from({length:throttled?1:3},async()=>{
         proposal={decision:"pending",reason:"Fonte original indisponível",
           detail:collected.pending.find((p:any)=>p.id===row.id)?.reason};
       } else {
-        const input:NewsInput={title:material.title,content:material.content,
+        const input:NewsInput={title:material.title,content:careful?normalize(material.content):material.content,
           isPortuguese:/agência brasil|bbc news brasil|g1 - globo|onu news|uol|folha/i.test(material.sourceName)};
         const classification=classificationSchema.parse(await call(THEME_AI_MODEL,buildThemePrompt(input),themeResponseSchema));
         if(new Set(classification.temas.map(t=>t.id)).size!==classification.temas.length)throw Error("IDs duplicados");
@@ -97,11 +108,19 @@ ENTRADA: ${JSON.stringify(input)}`,groundingSchema));
             ?{decision:"withdraw",reason:audit.motivo,classification,audit}
             :{decision:"pending",reason:"Ausência de temas não confirmada",classification,audit};
         } else {
-          const summary=await call(NEWS_AI_MODEL,buildGenerationPrompt(input),generationSchema(input.isPortuguese)) as Record<string,unknown>;
+          const summary=await call(NEWS_AI_MODEL,buildGenerationPrompt(input)+(careful?`
+CONFERÊNCIA ADICIONAL: prefira apenas 1 a 3 frases simples e indispensáveis. Copie cada citação exatamente
+da entrada, sem trocar aspas, acentos, pontuação nem nomes; não una palavras separadas por espaço.
+Escolha frases curtas da fonte e preserve atribuições. Não acrescente identidades completas, dias da semana
+nem deduza consequências. O título original também é evidência, mas não invente um título alternativo.`:""),generationSchema(input.isPortuguese)) as Record<string,unknown>;
           // A title returned on a PT source is unused and cannot replace the source headline.
           if(input.isPortuguese)delete summary.titulo_traduzido;
           const draft=validateDraft({...summary,...classification},input);
-          const audit=auditSchema.parse(await call(NEWS_AI_MODEL,buildGroundingPrompt(input,draft),groundingSchema));
+          const audit=auditSchema.parse(await call(NEWS_AI_MODEL,buildGroundingPrompt(input,draft)+(careful?`
+Avalie SOMENTE a entrada e a proposta deste pedido. O título original faz parte da fonte.
+Não substitua nomes, resultados eleitorais ou datas usando lembranças de notícias de outros anos.
+Sua tarefa é fidelidade ao texto fornecido, não verificação independente do acontecimento.
+Se o próprio material for contraditório, explique a contradição e reprove. Não escolha novos temas.`:""),groundingSchema));
           if(!audit.aprovado)proposal={decision:"pending",reason:"Resumo não passou na revisão de fidelidade",draft,audit};
           else {
             const paragraphs:string[]=[];

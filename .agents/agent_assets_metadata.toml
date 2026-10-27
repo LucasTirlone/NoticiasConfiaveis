@@ -42,3 +42,31 @@ mtime_ms = 1793061245933
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/4c911998-7a6a-4cf6-b626-7cca48ac3b83/240e232a-a178-41fc-8eaf-5e44786c8ec0"
 storage_version_token = "1793061287424600"
 content_type = "text/csv"
+
+[[outputs]]
+id = "NiJrTnSGLrTHa31RiNoh6"
+uri = "file://generated-artifacts/production-news-review-98/relatorio-revisao-98.html"
+type = "html"
+title = "Relatório da revisão das 98 notícias"
+description = "38 correções propostas, 60 pendências preservadas e nenhuma retirada. Inclui fontes, trechos literais, justificativas e downloads do backup e SQL protegido. Nada aplicado em produção."
+logical_id = "dd697533-ce65-4c9d-8e98-69f7cb1c9aa9"
+content_hash = "sha256:020f5005685499da61702c8133df9e9d5c4436b8d6ee7790fa16b67094d18fed"
+size = 3703807
+mtime_ms = 1793063001003
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/dd697533-ce65-4c9d-8e98-69f7cb1c9aa9/6415c786-e798-4037-8fc3-40b8f3dafd87"
+storage_version_token = "1793063167908613"
+content_type = "text/html"
+
+[[outputs]]
+id = "nhd7mSUiVu_dQhvvtRATV"
+uri = "file://generated-artifacts/revisao-complementar-98.zip"
+type = "unspecified"
+title = "Lote complementar completo com backup e evidências"
+description = "Arquivo ZIP com as 98 cópias congeladas, 38 propostas validadas, SQL de aplicação e reversão, capturas públicas, histórico das revisões e hashes de integridade. Não executa alterações automaticamente."
+logical_id = "f215379e-9abb-4e66-8b55-a8b5488f512c"
+content_hash = "sha256:2dbe839274644e359cd7796f644d68a4eaaefeaf1308eada3b5ff614365ed52f"
+size = 3608160
+mtime_ms = 1793063155183
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/f215379e-9abb-4e66-8b55-a8b5488f512c/8fceffff-0223-4a4b-8552-b8b87b55befa"
+storage_version_token = "1793063168577701"
+content_type = "application/octet-stream"
