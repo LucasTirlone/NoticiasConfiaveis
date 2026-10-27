@@ -1,2 +1,3 @@
 - [Managed AI access](managed-ai-access.md) — Connector catalogs, public model listings, and managed AI authorization are separate; verify actual access before promising a test.
 - [Model evaluation data](model-evaluation.md) — Compare models on real source news with recorded inputs and URLs, not synthetic stories alone.
+- [News publication policy](news-publication-policy.md) — Fail closed on unverified summaries/tags; model upgrades are authorized per role, not globally.

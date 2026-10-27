@@ -9,6 +9,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "test:news": "tsx --test server/services/news-analysis.test.ts server/services/rss-fetcher.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

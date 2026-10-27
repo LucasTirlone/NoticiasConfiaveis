@@ -1,11 +1,8 @@
 import Parser from "rss-parser";
 import { storage } from "../storage";
-import { db } from "../../db";
-import { newsItems } from "@shared/schema";
-import { eq } from "drizzle-orm";
 import type { InsertNewsItem } from "@shared/schema";
-import { findThemesByText, CATEGORIES } from "@shared/categories";
 import { GoogleGenAI } from "@google/genai";
+import { analyzeNews, cleanNewsContent, NEWS_AI_MODEL, parseModelJson } from "./news-analysis";
 
 const parser = new Parser();
 
@@ -93,7 +90,8 @@ async function verifySentinela(title: string, content: string): Promise<{
 } | null> {
   try {
     if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-      return { aprovado: true };
+      console.error("[Sentinela] Credenciais ausentes; notícia não será publicada sem análise.");
+      return null;
     }
 
     const ai = new GoogleGenAI({
@@ -104,14 +102,11 @@ async function verifySentinela(title: string, content: string): Promise<{
       },
     });
 
-    const inputData = `{
-  "título": "${title.replace(/"/g, '\\"')}",
-  "descrição": "${content.replace(/"/g, '\\"').slice(0, 500)}"
-}`;
+    const inputData = JSON.stringify({ título: title, descrição: content.slice(0, 500) });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { thinkingConfig: { thinkingBudget: 0 } },
+      model: NEWS_AI_MODEL,
+      config: { thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json" },
       contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
     });
 
@@ -127,13 +122,19 @@ async function verifySentinela(title: string, content: string): Promise<{
       return { aprovado: false };
     }
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    const data = parseModelJson(text) as Record<string, unknown>;
+    if (!data || typeof data.aprovado !== "boolean") throw new Error("Decisão do Sentinela inválida");
+    if (data.aprovado && !["Informativo", "Alerta", "Crítico"].includes(String(data.nivel_de_risco))) {
+      throw new Error("Nível de risco do Sentinela inválido");
     }
-    return null;
+    return {
+      aprovado: data.aprovado,
+      tag_exibicao: typeof data.tag_exibicao === "string" ? data.tag_exibicao : undefined,
+      nivel_de_risco: typeof data.nivel_de_risco === "string" ? data.nivel_de_risco : undefined,
+      resumo_analise: typeof data.resumo_analise === "string" ? data.resumo_analise : undefined,
+    };
   } catch (error) {
-    console.error("Error in Sentinela verification:", error);
+    console.error("[Sentinela] Falha de análise:", error instanceof Error ? error.name : "erro desconhecido");
     return null;
   }
 }
@@ -170,94 +171,23 @@ async function generateAiSummary(title: string, content: string, sourceName: str
       },
     });
 
-    const isPortuguese = isPortugueseSource(sourceName);
-
-    const TEMAS_POR_CATEGORIA = `Categorias e temas disponíveis (escolha apenas temas cujo evento central da notícia pertença à categoria indicada):
-
-• FENÔMENOS NATURAIS (desastres geofísicos e climáticos — origem natural, não conflito): Terremoto | Tsunami | Vulcão | Ciclone / Furacão | Tornado | Chuva Severa / Enchente | Deslizamento | Seca Extrema | Onda de Calor | Frio Extremo / Nevasca | Granizo | Maré Alta / Ressaca
-• ESPAÇO & ASTRONOMIA (fenômenos de origem espacial): Tempestade Solar / Geomagnética | Aurora Boreal | Eclipse | Asteroide / Meteoro | Lixo Espacial
-• RISCOS BIOLÓGICOS & AMBIENTAIS (saúde coletiva humana e danos ambientais — não conflitos): Epidemia / Vírus | Incêndio | Poluição Tóxica / Radiação
-• RISCOS TECNOLÓGICOS (falhas em infraestrutura crítica): Colapso Estrutural | Apagão | Acidente de Transporte | Ciberataque
-• GEOPOLÍTICA & CONFLITOS (ações militares e diplomáticas): Guerra / Conflito | Golpe de Estado | Terrorismo | Ameaça Nuclear | Crise Diplomática
-• POLÍTICA & ECONOMIA (impactos econômicos e políticos de grande escala): Crise Econômica | Eleições e Democracia | Tarifas e Comércio | Corrupção e Governança | Protestos e Greves`;
-
-    const prompt = isPortuguese
-      ? `Você é um jornalista brasileiro especializado em criar resumos claros e acessíveis.
-
-# CONTEXTO (Fonte já em Português)
-Título: ${title}
-Conteúdo: ${content}
-
-# TAREFA 1: RESUMO
-Crie um resumo claro e simples do conteúdo.
-- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
-- Tenha no máximo 3 parágrafos curtos.
-- Evite jargões técnicos.
-- Responda: O que? Onde? Quando? Por quê é importante?
-
-# TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
-
-${TEMAS_POR_CATEGORIA}
-
-Retorne no seguinte formato JSON:
-{
-  "resumo": "seu resumo aqui",
-  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
-}
-
-Responda apenas com o JSON.`
-      : `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
-
-# CONTEXTO
-Título original: ${title}
-Conteúdo original: ${content}
-
-# TAREFA 1: TRADUÇÃO E RESUMO
-Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muito claro e simples.
-- O título traduzido deve ser impactante e fiel ao original.
-- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
-- Tenha no máximo 3 parágrafos curtos.
-- Evite jargões técnicos.
-- Responda: O que? Onde? Quando? Por quê é importante?
-
-# TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
-
-${TEMAS_POR_CATEGORIA}
-
-Retorne no seguinte formato JSON:
-{
-  "titulo_traduzido": "Título em Português",
-  "resumo": "seu resumo traduzido aqui",
-  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
-}
-
-Responda apenas com o JSON.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { thinkingConfig: { thinkingBudget: 0 } },
-      contents: prompt,
+    return await analyzeNews({ title, content, isPortuguese: isPortugueseSource(sourceName) }, async (model, prompt, schema) => {
+      const response = await ai.models.generateContent({
+        model,
+        config: {
+          thinkingConfig: { thinkingBudget: 0 },
+          responseMimeType: "application/json",
+          responseJsonSchema: schema,
+          httpOptions: { timeout: 90000 },
+        },
+        contents: prompt,
+      });
+      return response.text || "";
     });
-
-    const text = response.text || "";
-    console.log(`\n--- INICIO DEBUG CATEGORIZACAO ---`);
-    console.log(`Notícia: ${title.slice(0, 80)}...`);
-    console.log(`Resposta Bruta: ${text}`);
-    console.log(`--- FIM DEBUG CATEGORIZACAO ---\n`);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      return {
-        summary: data.resumo,
-        themes: data.temas || [],
-        translatedTitle: data.titulo_traduzido
-      };
-    }
-    return null;
   } catch (error) {
-    console.error("Error generating AI summary and themes:", error);
+    const reason = error instanceof Error && error.message.startsWith("Revisão de fidelidade")
+      ? error.message : (error instanceof Error ? error.name : "erro desconhecido");
+    console.error("[AI] Resumo/temas não aprovados:", reason);
     return null;
   }
 }
@@ -344,16 +274,24 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       }
       
       const rawContent = item.contentSnippet || item.content || item.summary || "";
-      const content = rawContent.replace(/<[^>]*>?/gm, '').trim();
-      
-      const foundThemes = findThemesByText(`${title} ${content}`);
-      if (foundThemes.length === 0) {
-        continue;
-      }
+      const content = cleanNewsContent(rawContent);
 
       const verification = await verifySentinela(title, content);
       if (!verification || !verification.aprovado) {
         console.log(`Sentinela rejeitou item de ${source.name}: ${title.slice(0, 50)}... - ${verification?.resumo_analise || 'sem motivo'}`);
+        continue;
+      }
+
+      // Resolve and audit everything before the only write. No provisional
+      // keyword tags, no original-language fallback, no half-published row.
+      let aiResult = await generateAiSummary(title, rawContent, source.name);
+      if (!aiResult) {
+        console.log(`[AI] Retry de análise validada: ${title.slice(0, 50)}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        aiResult = await generateAiSummary(title, rawContent, source.name);
+      }
+      if (!aiResult || aiResult.themes.length === 0) {
+        console.log(`[AI] Item não publicado: sem resumo fiel ou temas válidos: ${title.slice(0, 70)}`);
         continue;
       }
 
@@ -367,11 +305,12 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       }
 
       const newsItem: InsertNewsItem = {
-        title: verification.tag_exibicao ? `${verification.tag_exibicao}: ${title}` : title,
+        title: aiResult.translatedTitle || title,
         originalTitle: title,
-        summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
+        summary: aiResult.summary,
+        aiSummary: aiResult.summary,
         fullContent: content,
-        tags: foundThemes.map(t => t.id),
+        tags: aiResult.themes,
         timestamp: isDateValid ? pubDate : new Date(),
         reliability,
         alertLevel,
@@ -383,81 +322,11 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
         originalUrl,
       };
 
-      const createdItem = await storage.createNewsItem(newsItem);
+      await storage.createNewsItem(newsItem);
       console.log(`Notícia de ${source.name} aprovada: ${title.slice(0, 50)}...`);
       processedCount++;
       localCount++;
       if (onProgress) onProgress({ count: localCount });
-      
-      // Gerar resumo com IA - com retry em caso de falha
-      let aiResult = await generateAiSummary(title, content, source.name);
-      
-      // Retry uma vez se falhar
-      if (!aiResult) {
-        console.log(`[AI] Retry para: ${title.slice(0, 50)}...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        aiResult = await generateAiSummary(title, content, source.name);
-      }
-      
-      if (aiResult && aiResult.summary) {
-        const allThemes = CATEGORIES.flatMap(c => c.themes);
-        const newTagIds = aiResult.themes
-          .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
-          .filter(Boolean) as string[];
-        
-        const finalTags = newTagIds.length > 0 ? newTagIds : newsItem.tags;
-        
-        // Sempre atualizar o ai_summary com o resumo da IA
-        await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
-        
-        // Update full content to be the complete AI summary
-        await db.update(newsItems).set({ fullContent: aiResult.summary }).where(eq(newsItems.id, createdItem.id));
-
-        await storage.updateNewsItemTags(createdItem.id, finalTags);
-        
-        if (aiResult.translatedTitle) {
-          await storage.updateNewsItemTitle(createdItem.id, aiResult.translatedTitle);
-        }
-      } else {
-        // Fallback: tentar uma tradução simples usando a mesma IA
-        console.log(`[AI] Usando fallback de tradução para: ${title.slice(0, 50)}...`);
-        
-        // Se a fonte é portuguesa, usar o conteúdo original
-        const isPortuguese = isPortugueseSource(source.name);
-        if (isPortuguese) {
-          const fallbackSummary = content.slice(0, 500) + (content.length > 500 ? "..." : "");
-          await storage.updateNewsItemAiSummary(createdItem.id, fallbackSummary);
-        } else {
-          // Tentar tradução básica como último recurso
-          try {
-            const ai = new GoogleGenAI({
-              apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
-              httpOptions: {
-                apiVersion: "",
-                baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL!,
-              },
-            });
-            
-            const translatePrompt = `Traduza este texto para português brasileiro de forma simples e direta (máximo 300 palavras):\n\n${content.slice(0, 800)}`;
-            const translateResponse = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              config: { thinkingConfig: { thinkingBudget: 0 } },
-              contents: translatePrompt,
-            });
-            
-            const translatedText = translateResponse.text || "";
-            if (translatedText && translatedText.length > 50) {
-              await storage.updateNewsItemAiSummary(createdItem.id, translatedText);
-            } else {
-              // Marcar como pendente de tradução
-              await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
-            }
-          } catch (translateError) {
-            // Último recurso: marcar como pendente de tradução
-            await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
-          }
-        }
-      }
     }
 
     await storage.updateSourceLastFetched(sourceId);
