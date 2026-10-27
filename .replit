@@ -56,3 +56,7 @@ isValidation = true
 [agent]
 mockupState = "FULLSTACK"
 integrations = ["javascript_gemini_ai_integrations:2.0.0"]
+
+[postMerge]
+path = "script/post-merge.sh"
+timeoutMs = 180000
