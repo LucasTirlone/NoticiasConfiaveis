@@ -187,7 +187,7 @@ export const CATEGORIES: Category[] = [
       {
         id: "conflito_guerra",
         name: "Conflito Armado / Guerra",
-        editorialGuidance: "Inclua combate organizado, ataque militar/armado, invasão, bombardeio, operação de guerra ou cessar-fogo como assunto principal. Exclua violência criminal isolada sem contexto de conflito armado e incêndio usado apenas como método/dano durante o ataque.",
+        editorialGuidance: "Inclua combate organizado, ataque militar/armado, invasão, bombardeio, operação de guerra ou cessar-fogo como assunto principal. Exclua violência criminal isolada sem contexto de conflito armado, metáforas e fogo sem evidência de ataque organizado. Casas queimadas durante um ataque não mudam o evento central de conflito para incêndio.",
         keywords: ["guerra", "declaração de guerra", "invasão", "incursão militar", "ataque aéreo", "bombardeio", "mísseis balísticos", "troca de tiros na fronteira", "cessar-fogo", "zona de exclusão aérea", "war", "invasion", "airstrike", "missile strike", "military operation", "fighting", "combat"]
       },
       {

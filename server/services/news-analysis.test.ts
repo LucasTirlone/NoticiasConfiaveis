@@ -37,6 +37,10 @@ test("real RSS: strips G1 related headlines without losing primary article or nu
   assert.equal(cleanNewsContent("<p>Ponte &amp; rio: 84 casas.</p><h2>Leia também:</h2><p>Guerra!</p>"),"Ponte & rio: 84 casas.");
   assert.equal(cleanNewsContent("Alerta\n✅ Clique aqui para seguir o canal do g1 no WhatsApp\nAgora no g1\n69 municípios"),"Alerta\n69 municípios");
   assert.equal(cleanNewsContent("Um morador disse: leia também o aviso.\nTexto principal."),"Um morador disse: leia também o aviso.\nTexto principal.");
+  // Real Agência Brasil source used in the frozen review: related articles
+  // follow this heading and must not supply themes for the flood victim story.
+  assert.equal(cleanNewsContent("Mulher foi levada pela correnteza.\nNotícias relacionadas:\nDeslizamento em outro município."),
+    "Mulher foi levada pela correnteza.");
 });
 
 test("role routing: only theme selection uses 3.5; summary and grounding stay on 2.5",async()=>{
@@ -109,11 +113,11 @@ test("Nigeria story is classified by the full event context, not the word fire",
   const themePrompt=prompts.find(prompt=>prompt.startsWith("Classifique"))??"";
   assert.match(themePrompt,/conteúdo completo/);
   assert.match(themePrompt,/casas incendiadas durante um ataque/);
-  assert.match(themePrompt,/ação secundária/);
+  assert.match(themePrompt,/detalhe da ação principal/);
   assert.match(themePrompt,/não deve ser uma citação que apenas contenha uma palavra-chave/);
   assert.match(themePrompt,/Cada tema precisa de um trecho literal/);
   assert.doesNotMatch(themePrompt,/deve vir do título/);
-  assert.match(themePrompt,/"id":"incendio","nome":"Incêndio","criterio":"[^"]+ação secundária/);
+  assert.match(themePrompt,/"id":"incendio","nome":"Incêndio","criterio":"[^"]+detalhe da ação principal/);
   assert.equal(validateDraft({...nigeriaSummary,temas:[classificationWithIncidentalFire.temas[1]]},nigeria)
     .temas[0].id,"incendio"); // text citation is grounded; centrality is the semantic review's job
 });
@@ -139,9 +143,9 @@ test("semantic audit rejects incidental fire when conflict is the central event"
   });
   await assert.rejects(()=>analyzeNews(nigeria,call),/Incêndio é detalhe incidental/);
   const auditPrompt=prompts.at(-1)??"";
-  assert.match(auditPrompt,/comparando título, conteúdo e critério editorial/);
+  assert.match(auditPrompt,/comparando título, conteúdo\s+e critério editorial/);
   assert.match(auditPrompt,/Incêndio em casas\/lojas durante ataque/);
-  assert.match(auditPrompt,/detalhe incidental/);
+  assert.match(auditPrompt,/é incidental/);
 });
 
 test("headline-centered wildfires retain the wildfire theme",async()=>{
@@ -169,10 +173,22 @@ test("a central event supported in the body can be tagged without headline-only 
     isPortuguese:true,
   };
   const themedDraft={
-    fatos:[{texto:"Um incêndio florestal avança em direção a comunidades e provoca evacuações.",trecho_fonte:"Um incêndio florestal de grandes proporções avança em direção a comunidades no Pará."}],
+    fatos:[{texto:"Um incêndio florestal avança em direção a comunidades no Pará.",trecho_fonte:"Um incêndio florestal de grandes proporções avança em direção a comunidades no Pará."}],
     temas:[{id:"incendio",trecho_fonte:"incêndio florestal de grandes proporções avança em direção a comunidades"}],
   };
   assert.deepEqual(validateDraft(themedDraft,article).temas.map(theme=>theme.id),["incendio"]);
+});
+
+test("every category and subfilter has editorial inclusion/exclusion guidance in classification",()=>{
+  const prompt=buildThemePrompt(source);
+  for(const category of CATEGORIES) {
+    assert.ok(category.editorialGuidance.trim().length>40);
+    assert.ok(prompt.includes(category.editorialGuidance));
+    for(const theme of category.themes) {
+      assert.match(theme.editorialGuidance,/Inclua .+Exclua /i);
+      assert.ok(prompt.includes(theme.editorialGuidance));
+    }
+  }
 });
 
 test("model schema exposes canonical enum and separates the summary contract from themes",()=>{

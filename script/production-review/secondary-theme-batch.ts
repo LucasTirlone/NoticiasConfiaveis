@@ -14,8 +14,9 @@ export type HistoricalDecision = {
   reason?: string;
   audit?: { approved?: boolean; aprovado?: boolean; reason?: string; motivo?: string };
   patch?: { tags?: string[] };
-  material?: { url?: string; title?: string; method?: string };
+  material?: { url?: string; title?: string; content?: string; method?: string };
   draft?: { temas?: Array<{ id: string; trecho_fonte: string }> };
+  contextualReview?: { approved: boolean; reason: string };
   manualReview?: string;
 };
 
@@ -60,39 +61,44 @@ export function prepareSecondaryThemeReview(
 
     const tags = decision.patch?.tags;
     const evidence = decision.draft?.temas ?? [];
-    const titleOnlyEvidence = Boolean(
+    const sourceGroundedEvidence = Boolean(
       decision.material?.url &&
       decision.material?.title &&
+      decision.material?.content &&
       tags?.length &&
       tags.every(tag => {
         const theme = evidence.find(item => item.id === tag);
-        return theme && normalize(decision.material!.title!).includes(normalize(theme.trecho_fonte));
+        const source = normalize(`${decision.material!.title}\n${decision.material!.content}`);
+        return theme && source.includes(normalize(theme.trecho_fonte));
       }),
     );
     const reviewApproved = decision.audit?.aprovado === true || decision.audit?.approved === true;
+    const contextApproved = decision.contextualReview?.approved === true &&
+      Boolean(decision.contextualReview.reason.trim());
     const withdrawnByManualReview = Boolean(decision.manualReview);
 
     if (
       decision.decision === "correct" &&
       !withdrawnByManualReview &&
       reviewApproved &&
+      contextApproved &&
       tags?.length &&
       !tags.includes("incendio") &&
-      titleOnlyEvidence
+      sourceGroundedEvidence
     ) {
       return {
         ...base,
         proposedTags: [...tags],
         status: "correction_proposed" as const,
-        reason: "A proposta revisada não atribui incêndio e todos os temas propostos têm evidência no título da fonte.",
+        reason: decision.contextualReview!.reason,
       };
     }
 
-    if (tags?.includes("incendio") && !titleOnlyEvidence) {
+    if (!sourceGroundedEvidence || !contextApproved) {
       return {
         ...base,
         status: "pending" as const,
-        reason: "A evidência de incêndio não está no título da fonte; a nova regra exige confirmação editorial antes de remover ou manter a etiqueta.",
+        reason: "Falta fonte/evidência literal ou conferência contextual segundo as referências editoriais; a decisão anterior não basta para alterar etiquetas.",
       };
     }
 

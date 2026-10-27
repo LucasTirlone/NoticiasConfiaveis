@@ -26,7 +26,7 @@ export function cleanNewsContent(raw: string): string {
   const lines: string[] = [];
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
-    if (/^(?:leia tamb[eé]m|veja tamb[eé]m|leia mais(?: not[ií]cias)?|read more|related (?:stories|articles)|continue reading)(?:\s*[:.…]|\s*$)/i.test(line)) break;
+    if (/^(?:leia tamb[eé]m|veja tamb[eé]m|not[ií]cias relacionadas|leia mais(?: not[ií]cias)?|read more|related (?:stories|articles)|continue reading)(?:\s*[:.…]|\s*$)/i.test(line)) break;
     if (/^(?:[✅📲]\s*)?(?:clique aqui para seguir|siga o canal|faça parte do canal|participe do canal|sign up for|agora no g1\b|veja o plant[aã]o de [uú]ltimas not[ií]cias)/i.test(line)) continue;
     if (line) lines.push(line);
   }

@@ -14,3 +14,9 @@ A model upgrade approved for theme selection is not permission to replace the mo
 **Why:** Real-news evaluation showed different strengths by role, and the user specifically selected the newer tested model for theme selection, not a wholesale replacement.
 
 **How to apply:** Keep model routing role-specific and seek a new instruction before broadening an upgrade to triage or summarization.
+
+Choose filters from the central event in the complete available source context, using editorial inclusion/exclusion references. Do not restrict evidence to the headline or treat incidental words as separate themes.
+
+**Why:** The user identified an armed-attack story incorrectly tagged as fire because houses were burned during the attack, and explicitly requested contextual curation instead of a title-only or keyword fix.
+
+**How to apply:** Use the same editorial references for theme selection and semantic review. Allow literal support from the body when it establishes a central event; reject themes supported only by secondary actions, damage, analogies or related stories.

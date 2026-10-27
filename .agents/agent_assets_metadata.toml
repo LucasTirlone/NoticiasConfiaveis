@@ -70,3 +70,17 @@ mtime_ms = 1793063155183
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/f215379e-9abb-4e66-8b55-a8b5488f512c/8fceffff-0223-4a4b-8552-b8b87b55befa"
 storage_version_token = "1793063168577701"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "JmbeRJCSO-zQ3GeFoG-uY"
+uri = "file://generated-artifacts/contextual-theme-review/relatorio-contextual.html"
+type = "html"
+title = "Revisão contextual dos filtros"
+description = "47 notícias da cópia disponível: 16 correções propostas, 12 temas mantidos e 19 pendentes. Nada aplicado; inclui fontes, critérios e arquivos para baixar."
+logical_id = "54cadac1-061d-4bd6-9487-2bc98389aaa3"
+content_hash = "sha256:2c98723d506fa696fb270db8f563bafd46f153aad54fc5f44de294b06eff4697"
+size = 438116
+mtime_ms = 1793128254723
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:11a4422c-e7d3-41bc-8d45-8ff794788e7d/54cadac1-061d-4bd6-9487-2bc98389aaa3/a09ec50d-8a0f-44c0-8c7c-1486a4eaf510"
+storage_version_token = "1793128343816576"
+content_type = "text/html"
