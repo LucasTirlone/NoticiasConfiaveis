@@ -4,7 +4,8 @@ import { db } from "../../db";
 import { newsItems } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { InsertNewsItem } from "@shared/schema";
-import { findThemesByText, CATEGORIES } from "@shared/categories";
+import { findThemesByText } from "@shared/categories";
+import { generateAiSummary, withClassificationRetry } from "./ai-news-summary";
 import { GoogleGenAI } from "@google/genai";
 
 const parser = new Parser();
@@ -156,112 +157,6 @@ function isPortugueseSource(sourceName: string): boolean {
   return isPortuguese;
 }
 
-async function generateAiSummary(title: string, content: string, sourceName: string): Promise<{ summary: string, themes: string[], translatedTitle?: string } | null> {
-  try {
-    if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-      return null;
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-      httpOptions: {
-        apiVersion: "",
-        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-      },
-    });
-
-    const isPortuguese = isPortugueseSource(sourceName);
-
-    const TEMAS_POR_CATEGORIA = `Categorias e temas disponíveis (escolha apenas temas cujo evento central da notícia pertença à categoria indicada):
-
-• FENÔMENOS NATURAIS (desastres geofísicos e climáticos — origem natural, não conflito): Terremoto | Tsunami | Vulcão | Ciclone / Furacão | Tornado | Chuva Severa / Enchente | Deslizamento | Seca Extrema | Onda de Calor | Frio Extremo / Nevasca | Granizo | Maré Alta / Ressaca
-• ESPAÇO & ASTRONOMIA (fenômenos de origem espacial): Tempestade Solar / Geomagnética | Aurora Boreal | Eclipse | Asteroide / Meteoro | Lixo Espacial
-• RISCOS BIOLÓGICOS & AMBIENTAIS (saúde coletiva humana e danos ambientais — não conflitos): Epidemia / Vírus | Incêndio | Poluição Tóxica / Radiação
-• RISCOS TECNOLÓGICOS (falhas em infraestrutura crítica): Colapso Estrutural | Apagão | Acidente de Transporte | Ciberataque
-• GEOPOLÍTICA & CONFLITOS (ações militares e diplomáticas): Guerra / Conflito | Golpe de Estado | Terrorismo | Ameaça Nuclear | Crise Diplomática
-• POLÍTICA & ECONOMIA (impactos econômicos e políticos de grande escala): Crise Econômica | Eleições e Democracia | Tarifas e Comércio | Corrupção e Governança | Protestos e Greves`;
-
-    const prompt = isPortuguese
-      ? `Você é um jornalista brasileiro especializado em criar resumos claros e acessíveis.
-
-# CONTEXTO (Fonte já em Português)
-Título: ${title}
-Conteúdo: ${content}
-
-# TAREFA 1: RESUMO
-Crie um resumo claro e simples do conteúdo.
-- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
-- Tenha no máximo 3 parágrafos curtos.
-- Evite jargões técnicos.
-- Responda: O que? Onde? Quando? Por quê é importante?
-
-# TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
-
-${TEMAS_POR_CATEGORIA}
-
-Retorne no seguinte formato JSON:
-{
-  "resumo": "seu resumo aqui",
-  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
-}
-
-Responda apenas com o JSON.`
-      : `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
-
-# CONTEXTO
-Título original: ${title}
-Conteúdo original: ${content}
-
-# TAREFA 1: TRADUÇÃO E RESUMO
-Traduza o título e o conteúdo para PORTUGUÊS BRASILEIRO e crie um resumo muito claro e simples.
-- O título traduzido deve ser impactante e fiel ao original.
-- O resumo deve ser COMPLETO, sem terminar com reticências. Explique todo o fato de forma objetiva do início ao fim.
-- Tenha no máximo 3 parágrafos curtos.
-- Evite jargões técnicos.
-- Responda: O que? Onde? Quando? Por quê é importante?
-
-# TAREFA 2: CATEGORIZAÇÃO
-Analise a notícia e selecione até 3 temas da lista abaixo que sejam REAIS e estejam EXPLÍCITOS no texto. Leve em conta a categoria de cada tema para garantir precisão — o mesmo evento não pode pertencer a duas categorias ao mesmo tempo.
-
-${TEMAS_POR_CATEGORIA}
-
-Retorne no seguinte formato JSON:
-{
-  "titulo_traduzido": "Título em Português",
-  "resumo": "seu resumo traduzido aqui",
-  "temas": ["Tema Principal", "Tema Secundário 1", "Tema Secundário 2"]
-}
-
-Responda apenas com o JSON.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { thinkingConfig: { thinkingBudget: 0 } },
-      contents: prompt,
-    });
-
-    const text = response.text || "";
-    console.log(`\n--- INICIO DEBUG CATEGORIZACAO ---`);
-    console.log(`Notícia: ${title.slice(0, 80)}...`);
-    console.log(`Resposta Bruta: ${text}`);
-    console.log(`--- FIM DEBUG CATEGORIZACAO ---\n`);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      return {
-        summary: data.resumo,
-        themes: data.temas || [],
-        translatedTitle: data.titulo_traduzido
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error("Error generating AI summary and themes:", error);
-    return null;
-  }
-}
-
 function calculateReliability(sourceType: "official" | "media" | "blog"): {
   reliability: "high" | "medium" | "low" | "investigating";
   whyReliable: string;
@@ -371,7 +266,9 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
         originalTitle: title,
         summary: content.slice(0, 300) + (content.length > 300 ? "..." : ""),
         fullContent: content,
-        tags: foundThemes.map(t => t.id),
+        // Keywords are only a cheap intake gate, never a source of filter tags.
+        // A new row remains unclassified until contextual validation completes.
+        tags: [],
         timestamp: isDateValid ? pubDate : new Date(),
         reliability,
         alertLevel,
@@ -389,74 +286,27 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
       localCount++;
       if (onProgress) onProgress({ count: localCount });
       
-      // Gerar resumo com IA - com retry em caso de falha
-      let aiResult = await generateAiSummary(title, content, source.name);
+      const isPortuguese = isPortugueseSource(source.name);
+      const aiResult = await withClassificationRetry(
+        () => generateAiSummary(title, content, isPortuguese),
+      );
       
-      // Retry uma vez se falhar
-      if (!aiResult) {
-        console.log(`[AI] Retry para: ${title.slice(0, 50)}...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        aiResult = await generateAiSummary(title, content, source.name);
-      }
-      
-      if (aiResult && aiResult.summary) {
-        const allThemes = CATEGORIES.flatMap(c => c.themes);
-        const newTagIds = aiResult.themes
-          .map(themeName => allThemes.find(t => t.name.toLowerCase().includes(themeName.toLowerCase()))?.id)
-          .filter(Boolean) as string[];
-        
-        const finalTags = newTagIds.length > 0 ? newTagIds : newsItem.tags;
-        
-        // Sempre atualizar o ai_summary com o resumo da IA
-        await storage.updateNewsItemAiSummary(createdItem.id, aiResult.summary);
-        
-        // Update full content to be the complete AI summary
-        await db.update(newsItems).set({ fullContent: aiResult.summary }).where(eq(newsItems.id, createdItem.id));
-
-        await storage.updateNewsItemTags(createdItem.id, finalTags);
-        
-        if (aiResult.translatedTitle) {
-          await storage.updateNewsItemTitle(createdItem.id, aiResult.translatedTitle);
-        }
+      if (aiResult) {
+        // One atomic update: never expose tags before their summary/title is ready.
+        // Preserve original RSS content for auditing and any later reclassification.
+        await db.update(newsItems).set({
+          aiSummary: aiResult.summary,
+          title: isPortuguese ? title : aiResult.translatedTitle,
+          tags: aiResult.tags,
+        }).where(eq(newsItems.id, createdItem.id));
+        console.log(`[Classificação] ${createdItem.id}: ${JSON.stringify({
+          status: aiResult.tags.length ? "classificada" : "sem_classificacao_segura",
+          decisions: aiResult.decisions,
+        })}`);
       } else {
-        // Fallback: tentar uma tradução simples usando a mesma IA
-        console.log(`[AI] Usando fallback de tradução para: ${title.slice(0, 50)}...`);
-        
-        // Se a fonte é portuguesa, usar o conteúdo original
-        const isPortuguese = isPortugueseSource(source.name);
-        if (isPortuguese) {
-          const fallbackSummary = content.slice(0, 500) + (content.length > 500 ? "..." : "");
-          await storage.updateNewsItemAiSummary(createdItem.id, fallbackSummary);
-        } else {
-          // Tentar tradução básica como último recurso
-          try {
-            const ai = new GoogleGenAI({
-              apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY!,
-              httpOptions: {
-                apiVersion: "",
-                baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL!,
-              },
-            });
-            
-            const translatePrompt = `Traduza este texto para português brasileiro de forma simples e direta (máximo 300 palavras):\n\n${content.slice(0, 800)}`;
-            const translateResponse = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              config: { thinkingConfig: { thinkingBudget: 0 } },
-              contents: translatePrompt,
-            });
-            
-            const translatedText = translateResponse.text || "";
-            if (translatedText && translatedText.length > 50) {
-              await storage.updateNewsItemAiSummary(createdItem.id, translatedText);
-            } else {
-              // Marcar como pendente de tradução
-              await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
-            }
-          } catch (translateError) {
-            // Último recurso: marcar como pendente de tradução
-            await storage.updateNewsItemAiSummary(createdItem.id, `[Tradução pendente] ${content.slice(0, 300)}...`);
-          }
-        }
+        // No third AI call just for translation, and no keyword fallback.
+        // Retain the original row, untagged and excluded from category feeds.
+        console.warn(`[Classificação] ${createdItem.id}: pendente por falha da IA; tags vazias preservadas.`);
       }
     }
 

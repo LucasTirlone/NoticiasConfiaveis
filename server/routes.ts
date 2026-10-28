@@ -184,7 +184,9 @@ export async function registerRoutes(
         items = await storage.getAllNewsItems(safeLimit);
       }
       
-      const enriched = await enrichNewsItems(items);
+      // Untagged rows are retained for review, but must not leak into the feed
+      // when a caller omits the tag filter (including during AI processing).
+      const enriched = await enrichNewsItems(items.filter(item => item.tags.length > 0));
       res.json(enriched);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch news" });

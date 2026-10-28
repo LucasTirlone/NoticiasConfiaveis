@@ -1,1 +1,2 @@
 - [Package firewall recovery](package-firewall.md) — parent upgrades can retain blocked transitive versions from the lockfile.
+- [Classification policy](classification-policy.md) — prioritize contextual precision and low AI cost; user examples belong in tests, not prompt exceptions.
