@@ -2,31 +2,29 @@ import pLimit from "p-limit";
 import pRetry from "p-retry";
 
 /**
- * Batch Processing Utilities for Gemini
+ * Generic batch processing utilities for AI requests
  *
- * Supported models: gemini-2.5-flash (fast), gemini-2.5-pro (advanced reasoning), gemini-2.5-flash-image (image generation)
+ * The news and chat pipeline uses OpenAI gpt-6-luna. Image generation remains
+ * a separate Gemini image workflow.
  *
  * USAGE:
  * ```typescript
  * import { batchProcess } from "./replit_integrations/batch";
- * import { GoogleGenAI } from "@google/genai";
+ * import OpenAI from "openai";
  *
- * const ai = new GoogleGenAI({
- *   apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
- *   httpOptions: {
- *     apiVersion: "",
- *     baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
- *   },
+ * const ai = new OpenAI({
+ *   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+ *   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
  * });
  *
  * const results = await batchProcess(
  *   items,
  *   async (item) => {
- *     const response = await ai.models.generateContent({
- *       model: "gemini-2.5-flash",
- *       contents: `Process: ${item.name}`,
+ *     const response = await ai.chat.completions.create({
+ *       model: "gpt-6-luna",
+ *       messages: [{ role: "user", content: `Process: ${item.name}` }],
  *     });
- *     return response.text || "";
+ *     return response.choices[0]?.message?.content || "";
  *   }
  * );
  * ```

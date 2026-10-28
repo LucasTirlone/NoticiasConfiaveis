@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertSourceSchema, insertUserPreferencesSchema, loginUserSchema, registerUserSchema } from "@shared/schema";
 import { fetchAllRSS, fetchRSSFromSource } from "./services/rss-fetcher";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
+import { getOpenAIClient, NEWS_AI_MODEL } from "./services/openai-client";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -350,14 +350,6 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Title and content are required" });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-        },
-      });
-
       const prompt = `Você é um jornalista brasileiro especializado em traduzir notícias complexas para linguagem simples e acessível.
 
 Título da notícia: ${title}
@@ -375,12 +367,12 @@ Por favor, crie um resumo muito claro e simples desta notícia em português bra
 
 Responda apenas com o resumo, sem introduções ou explicações adicionais.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
+      const response = await getOpenAIClient().chat.completions.create({
+        model: NEWS_AI_MODEL,
+        messages: [{ role: "user", content: prompt }],
       });
 
-      const aiSummary = response.text || content;
+      const aiSummary = response.choices[0]?.message?.content || content;
       
       res.json({ summary: aiSummary });
     } catch (error) {

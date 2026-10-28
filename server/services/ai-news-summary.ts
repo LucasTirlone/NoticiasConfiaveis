@@ -1,7 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+import { getOpenAIClient, NEWS_AI_MODEL } from "./openai-client";
 import {
   buildClassificationPrompt,
-  CLASSIFICATION_RESPONSE_SCHEMA,
   parseClassifiedSummary,
   type ClassifiedSummary,
 } from "./news-classification";
@@ -29,30 +28,19 @@ export async function generateAiSummary(
   content: string,
   isPortuguese: boolean,
 ): Promise<ClassifiedSummary | null> {
-  if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-    return null;
-  }
-
   try {
-    const ai = new GoogleGenAI({
-      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-      httpOptions: {
-        apiVersion: "",
-        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-      },
+    const response = await getOpenAIClient().chat.completions.create({
+      model: NEWS_AI_MODEL,
+      messages: [{
+        role: "user",
+        content: buildClassificationPrompt(title, content, isPortuguese),
+      }],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 1400,
     });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: "application/json",
-        responseJsonSchema: CLASSIFICATION_RESPONSE_SCHEMA,
-        maxOutputTokens: 1400,
-      },
-      contents: buildClassificationPrompt(title, content, isPortuguese),
-    });
-    const result = parseClassifiedSummary(response.text || "", title, content);
-    console.log(`[Classificação IA] tokens: entrada=${response.usageMetadata?.promptTokenCount ?? "?"}, saída=${response.usageMetadata?.candidatesTokenCount ?? "?"}`);
+    const text = response.choices[0]?.message?.content || "";
+    const result = parseClassifiedSummary(text, title, content);
+    console.log(`[Classificação IA] modelo=${NEWS_AI_MODEL}, tokens: entrada=${response.usage?.prompt_tokens ?? "?"}, saída=${response.usage?.completion_tokens ?? "?"}`);
     return result;
   } catch (error) {
     console.error("Falha no resumo/classificação contextual:", error instanceof Error ? error.message : "erro desconhecido");

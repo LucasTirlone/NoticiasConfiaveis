@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import type { InsertNewsItem } from "@shared/schema";
 import { findThemesByText } from "@shared/categories";
 import { generateAiSummary, withClassificationRetry } from "./ai-news-summary";
-import { GoogleGenAI } from "@google/genai";
+import { getOpenAIClient, NEWS_AI_MODEL } from "./openai-client";
 
 const parser = new Parser();
 
@@ -93,31 +93,23 @@ async function verifySentinela(title: string, content: string): Promise<{
   resumo_analise?: string;
 } | null> {
   try {
-    if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY || !process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-      return { aprovado: true };
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-      httpOptions: {
-        apiVersion: "",
-        baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-      },
-    });
-
     const inputData = `{
   "título": "${title.replace(/"/g, '\\"')}",
   "descrição": "${content.replace(/"/g, '\\"').slice(0, 500)}"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { thinkingConfig: { thinkingBudget: 0 } },
-      contents: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
+    const response = await getOpenAIClient().chat.completions.create({
+      model: NEWS_AI_MODEL,
+      messages: [{
+        role: "user",
+        content: `${SENTINELA_PROMPT}\n\nNotícia para análise:\n${inputData}`,
+      }],
+      response_format: { type: "json_object" },
     });
 
-    const text = response.text || "";
+    const text = response.choices[0]?.message?.content || "";
     console.log(`\n--- INICIO DEBUG SENTINELA ---`);
+    console.log(`Modelo: ${NEWS_AI_MODEL}`);
     console.log(`Notícia: ${title.slice(0, 80)}...`);
     console.log(`Resposta Bruta: ${text}`);
     console.log(`--- FIM DEBUG SENTINELA ---\n`);
@@ -186,6 +178,9 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
   console.log(`\n--- Iniciando busca na fonte: ${source.name} ---`);
 
   try {
+    // Don't consume or mark feed items fetched until the requested AI provider is enabled.
+    getOpenAIClient();
+
     // Fetch with explicit encoding detection to handle feeds that use
     // ISO-8859-1 / Latin-1 (common in some Brazilian news sources like UOL)
     let feed: Awaited<ReturnType<typeof parser.parseURL>>;

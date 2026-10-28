@@ -1,20 +1,6 @@
 import type { Express, Request, Response } from "express";
-import { GoogleGenAI } from "@google/genai";
 import { chatStorage } from "./storage";
-
-/*
-Supported models: gemini-2.5-flash (fast), gemini-2.5-pro (advanced reasoning)
-Usage: Include httpOptions with baseUrl and empty apiVersion when using AI Integrations (required)
-*/
-
-// This is using Replit's AI Integrations service, which provides Gemini-compatible API access without requiring your own Gemini API key.
-const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-  },
-});
+import { getOpenAIClient, NEWS_AI_MODEL } from "../../services/openai-client";
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -80,8 +66,8 @@ export function registerChatRoutes(app: Express): void {
       // Get conversation history for context
       const messages = await chatStorage.getMessagesByConversation(conversationId);
       const chatMessages = messages.map((m) => ({
-        role: m.role as "user" | "model",
-        parts: [{ text: m.content }],
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
       }));
 
       // Set up SSE
@@ -89,16 +75,17 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Stream response from Gemini
-      const stream = await ai.models.generateContentStream({
-        model: "gemini-2.5-flash",
-        contents: chatMessages,
+      // Stream response from OpenAI using the same model as the news pipeline.
+      const stream = await getOpenAIClient().chat.completions.create({
+        model: NEWS_AI_MODEL,
+        messages: chatMessages,
+        stream: true,
       });
 
       let fullResponse = "";
 
       for await (const chunk of stream) {
-        const content = chunk.text || "";
+        const content = chunk.choices[0]?.delta?.content || "";
         if (content) {
           fullResponse += content;
           res.write(`data: ${JSON.stringify({ content })}\n\n`);

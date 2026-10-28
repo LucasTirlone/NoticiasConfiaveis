@@ -18,7 +18,7 @@ export default function Privacy() {
           <ShieldCheck className="w-8 h-8 text-green-600" />
           <div>
             <h1 className="text-3xl font-serif font-bold text-primary">Política de Privacidade</h1>
-            <p className="text-muted-foreground text-sm">Sentinela IA — Última atualização: abril de 2026</p>
+            <p className="text-muted-foreground text-sm">Sentinela IA — Última atualização: outubro de 2026</p>
           </div>
         </div>
 
@@ -26,7 +26,7 @@ export default function Privacy() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">1. Quem somos</h2>
             <p className="text-muted-foreground leading-relaxed">
-              O Sentinela IA é um aplicativo de agregação e verificação de notícias que utiliza inteligência artificial (Google Gemini) para filtrar, traduzir e resumir informações de fontes públicas e confiáveis. Operamos exclusivamente no Brasil.
+              O Sentinela IA é um aplicativo de agregação e verificação de notícias que utiliza inteligência artificial (OpenAI) para filtrar, traduzir e resumir informações de fontes públicas e confiáveis. A geração de imagens usa Google Gemini. Operamos exclusivamente no Brasil.
             </p>
           </section>
 
@@ -59,7 +59,8 @@ export default function Privacy() {
               <strong className="text-foreground">Não vendemos, alugamos nem compartilhamos</strong> seus dados pessoais com terceiros para fins comerciais. Seus dados podem ser processados por:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-              <li><strong className="text-foreground">Google (Gemini AI):</strong> os resumos de notícias são gerados via API do Google. Os textos das notícias são enviados, mas nunca seu nome, e-mail ou dados pessoais.</li>
+              <li><strong className="text-foreground">OpenAI:</strong> o GPT-6 Luna processa textos de notícias para classificação, tradução e resumo, além de responder às mensagens do chat. Esses textos e mensagens são enviados à API; o app não anexa automaticamente o nome ou e-mail da conta aos pedidos.</li>
+              <li><strong className="text-foreground">Google (Gemini AI):</strong> usado para gerar imagens a partir dos prompts enviados.</li>
               <li><strong className="text-foreground">Infraestrutura de hospedagem (Replit):</strong> onde o aplicativo e o banco de dados são mantidos com segurança.</li>
             </ul>
           </section>
