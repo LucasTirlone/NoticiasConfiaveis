@@ -1,2 +1,3 @@
 - [Package firewall recovery](package-firewall.md) — parent upgrades can retain blocked transitive versions from the lockfile.
 - [Classification policy](classification-policy.md) — prioritize contextual precision and low AI cost; user examples belong in tests, not prompt exceptions.
+- [Managed AI provisioning](managed-ai-provisioning.md) — distinguish credential provisioning from model/API errors; the connector catalog is not a reliable managed-AI availability check.
