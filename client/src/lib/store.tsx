@@ -204,35 +204,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const initialLoad = async () => {
-      setIsLoading(true);
-      setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
+    const controller = new AbortController();
+    let inFlight = false;
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    const readLatestNews = async (initial = false) => {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
+      if (initial) {
+        setIsLoading(true);
+        setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
+      }
 
       try {
         const tagsParam = preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined;
-        const newsData = await api.getNews(tagsParam);
+        const newsData = await api.getNews(tagsParam, controller.signal);
+        if (controller.signal.aborted) return;
         setFeed(newsData as NewsItem[]);
-        setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        setCurrentPage(1);
+        if (initial) {
+          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error("Failed to load news:", error);
         setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao carregar notícias" });
       } finally {
-        setIsLoading(false);
-        setTimeout(() => {
-          setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
-        }, 1500);
-      }
-
-      // Sources are admin-only — load independently so a failure here never blocks news
-      try {
-        const sourcesData = await api.getSources();
-        setSources(sourcesData);
-      } catch (error) {
-        console.error("Failed to load sources:", error);
+        inFlight = false;
+        if (initial && !controller.signal.aborted) {
+          setIsLoading(false);
+          resetTimer = setTimeout(() => {
+            setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
+          }, 1500);
+        }
       }
     };
-    initialLoad();
-  }, [preferences.selectedTags]);
+
+    // Read only stored news: returning to the app must never trigger RSS or AI.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void readLatestNews();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) onVisible();
+    };
+    void readLatestNews(true);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      controller.abort();
+      if (resetTimer) clearTimeout(resetTimer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [preferences.selectedTags, user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    api.getSources().then(data => {
+      if (active) setSources(data);
+    }).catch(error => console.error("Failed to load sources:", error));
+    return () => { active = false; };
+  }, [user?.id]);
 
   const updatePreferences = async (newPrefs: Partial<UserPreferences>) => {
     const updated = { ...preferences, ...newPrefs };

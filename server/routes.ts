@@ -172,6 +172,7 @@ export async function registerRoutes(
 
   // ===== NEWS ITEMS =====
   app.get("/api/news", async (req, res) => {
+    res.set("Cache-Control", "no-store");
     try {
       const tags = req.query.tags ? String(req.query.tags).split(",") : null;
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 200;

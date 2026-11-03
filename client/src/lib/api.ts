@@ -12,14 +12,18 @@ export interface RefreshProgress {
 
 export const api = {
   // News
-  async getNews(tags?: string[]): Promise<NewsItem[]> {
+  async getNews(tags?: string[], signal?: AbortSignal): Promise<NewsItem[]> {
     let params = "";
     if (tags && tags.length > 0) {
       const searchParams = new URLSearchParams();
       searchParams.set("tags", tags.join(","));
       params = `?${searchParams.toString()}`;
     }
-    const res = await fetch(`${API_BASE}/news${params}`, { credentials: "include" });
+    const res = await fetch(`${API_BASE}/news${params}`, {
+      credentials: "include",
+      cache: "no-store",
+      signal,
+    });
     if (!res.ok) throw new Error("Failed to fetch news");
     return res.json();
   },
