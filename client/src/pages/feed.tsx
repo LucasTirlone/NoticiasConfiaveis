@@ -1,8 +1,9 @@
-import { useStore, CATEGORIES } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { NewsCard } from "@/components/NewsCard";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle, ChevronRight } from "lucide-react";
+import { FeedFilters } from "@/components/FeedFilters";
+import { ShieldCheck, RefreshCw, AlertTriangle, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
@@ -29,7 +30,6 @@ export default function Feed() {
   
   const { isAdmin } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadNextPageRef = useRef(loadNextPage);
   loadNextPageRef.current = loadNextPage;
@@ -44,27 +44,6 @@ export default function Feed() {
     return () => observer.disconnect();
   }, [hasMore, isLoading, isLoadingMore, feedError, feed.length]);
 
-  const toggleCategoryExpand = (categoryId: string) => {
-    setExpandedCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  const isCategoryFullySelected = (categoryId: string) => {
-    const category = CATEGORIES.find(c => c.id === categoryId);
-    if (!category) return false;
-    return category.themes.every(t => preferences.selectedTags.includes(t.id));
-  };
-
-  const isCategoryPartiallySelected = (categoryId: string) => {
-    const category = CATEGORIES.find(c => c.id === categoryId);
-    if (!category) return false;
-    const selectedCount = category.themes.filter(t => preferences.selectedTags.includes(t.id)).length;
-    return selectedCount > 0 && selectedCount < category.themes.length;
-  };
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -75,29 +54,27 @@ export default function Feed() {
   };
 
   const showLoadingBar = refreshProgress.status !== "idle" || isLoading;
-  const allSelected = preferences.selectedTags.length === CATEGORIES.flatMap(c => c.themes).length;
-  const noneSelected = preferences.selectedTags.length === 0;
   return (
     <div className="space-y-6">
       {showLoadingBar && <LoadingProgress />}
       
-      <div className={showLoadingBar ? "pt-24" : ""}>
+      <div className={`space-y-4 ${showLoadingBar ? "pt-24" : ""}`}>
         <motion.section 
-          className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-6 text-center space-y-4"
+          className="rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/[0.07] via-primary/[0.035] to-transparent px-4 py-4 sm:px-5 sm:py-4"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                <ShieldCheck className="w-7 h-7 text-primary" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <ShieldCheck className="h-5 w-5 text-primary" aria-hidden />
               </div>
-              <div className="text-left">
-                <h1 className="text-2xl font-serif text-primary font-bold">
+              <div className="min-w-0 text-left">
+                <h1 className="text-xl font-serif font-bold leading-tight text-primary sm:text-2xl">
                   Notícias Verificadas
                 </h1>
-                <p className="text-muted-foreground text-sm">
+                <p className="mt-1 text-sm leading-snug text-muted-foreground">
                   {feed.length > 0 
                     ? `${totalNews} notícias disponíveis nos últimos 7 dias · ${feed.length} carregadas`
                     : "Notícias dos últimos 7 dias"
@@ -105,124 +82,31 @@ export default function Feed() {
                 </p>
               </div>
             </div>
-            {isAdmin && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-primary uppercase tracking-wider hidden sm:inline">
-                  Atualizar Notícias
-                </span>
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-4 sm:shrink-0 sm:flex-nowrap">
+              {isAdmin && (
                 <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-12 w-12 shrink-0 border-primary/30 hover:bg-primary/10"
+                  variant="outline"
+                  className="h-11 gap-2 border-primary/25 px-3 text-primary hover:bg-primary/5"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                   data-testid="refresh-button"
+                  aria-label="Atualizar notícias"
                 >
-                  <RefreshCw className={`w-6 h-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden />
+                  <span className="text-sm">Atualizar notícias</span>
                 </Button>
-              </div>
-            )}
+              )}
+              <FeedFilters
+                selectedTags={preferences.selectedTags}
+                toggleTheme={toggleTheme}
+                selectAllThemes={selectAllThemes}
+                clearAllThemes={clearAllThemes}
+                selectCategory={selectCategory}
+                deselectCategory={deselectCategory}
+              />
+            </div>
           </div>
         </motion.section>
-
-        <section className="bg-card border rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-muted-foreground" />
-              <p className="font-medium text-muted-foreground">
-                Filtrar por categoria:
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant={allSelected ? "default" : "outline"} 
-                size="sm"
-                onClick={selectAllThemes}
-                className="text-sm"
-                data-testid="select-all-button"
-              >
-                <CheckCheck className="w-4 h-4 mr-1" />
-                Todos
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={clearAllThemes}
-                disabled={noneSelected}
-                className="text-sm"
-                data-testid="clear-all-button"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Limpar
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {CATEGORIES.map(category => {
-              const isExpanded = expandedCategories.includes(category.id);
-              const isFullySelected = isCategoryFullySelected(category.id);
-              const isPartiallySelected = isCategoryPartiallySelected(category.id);
-              
-              return (
-                <div key={category.id} className="border rounded-xl overflow-hidden">
-                  <div 
-                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
-                      isFullySelected ? 'bg-primary/10' : isPartiallySelected ? 'bg-primary/5' : 'bg-muted/30'
-                    }`}
-                    onClick={() => toggleCategoryExpand(category.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{category.icon}</span>
-                      <span className="text-sm font-normal">{category.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({category.themes.filter(t => preferences.selectedTags.includes(t.id)).length}/{category.themes.length})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant={isFullySelected ? "default" : "outline"}
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          isFullySelected ? deselectCategory(category.id) : selectCategory(category.id);
-                        }}
-                        className="text-xs h-7"
-                      >
-                        {isFullySelected ? "✓" : "Selecionar"}
-                      </Button>
-                      <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                    </div>
-                  </div>
-                  
-                  {isExpanded && (
-                    <div className="p-3 bg-background border-t">
-                      <div className="flex flex-wrap gap-2">
-                        {category.themes.map(theme => {
-                          const isActive = preferences.selectedTags.includes(theme.id);
-                          return (
-                            <button
-                              key={theme.id}
-                              onClick={() => toggleTheme(theme.id)}
-                              className={`px-2.5 py-1 rounded-full text-xs font-normal transition-all ${
-                                isActive 
-                                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                              }`}
-                              data-testid={`theme-filter-${theme.id}`}
-                            >
-                              {isActive ? '✓ ' : ''}{theme.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
 
         {isLoading && feed.length === 0 ? (
           <div className="space-y-4 animate-pulse">

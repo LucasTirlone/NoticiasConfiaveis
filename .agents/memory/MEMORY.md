@@ -1,3 +1,4 @@
+- [Feed layout](feed-layout.md) — prioritize articles under a compact header; filters stay collapsed, and overall content width stays unchanged.
 - [Feed freshness](feed-freshness.md) — opening or returning to the app reads the latest stored news without triggering collection or AI.
 - [Package firewall recovery](package-firewall.md) — parent upgrades can retain blocked transitive versions from the lockfile.
 - [Classification policy](classification-policy.md) — prioritize contextual precision and low AI cost; user examples belong in tests, not prompt exceptions.
