@@ -20,3 +20,9 @@ Check the underlying documentation pages before recommending alternate activatio
 **Why:** Search summaries suggested the generic Connectors menu could provision managed OpenAI, but their cited page described third-party account connectors and did not establish that capability.
 
 **How to apply:** Treat such summaries as pointers, not proof of an activation mechanism. Do not invent integration identifiers or edit integration metadata as a substitute for credential provisioning.
+
+The user confirms this workspace is on Core. Replit AI Integrations supports managed credentials on Core, while Pro and Enterprise have an organization-level access toggle.
+
+**Why:** Confusing Core plan access with Pro/Enterprise organization controls caused incorrect guidance.
+
+**How to apply:** For this workspace, do not tell the user that an organization admin must enable AI Integrations solely because the managed provider keys are absent. For an existing app, distinguish plan eligibility from the Agent's managed-integration approval/provisioning flow.
