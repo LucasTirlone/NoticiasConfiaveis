@@ -9,6 +9,18 @@ Diagnose managed-AI provisioning separately from model and API compatibility. A 
 
 **How to apply:** Use the app's client to identify the failure stage without exposing credentials. Check current official Replit AI Integrations documentation for provisioning and plan rules; do not promise that naming environment variables or repeating a prompt will inject credentials. Existing-app approval and organization-level enablement are separate requirements. Core availability alone does not imply that an existing app needs no approval.
 
+Native managed-AI provisioning is separate from connector discovery. Platform instructions supplied by the user identify the CodeExecution callback `setupReplitAIIntegrations({ providerSlug: "openai" })`, or providerSlug `"anthropic"`. This callback successfully provisioned managed credentials without connector-catalog discovery.
+
+**Why:** Repeated connector searches and premature conclusions about unavailable activation blocked a supported configuration. The explicit platform-provided callback resolved it.
+
+**How to apply:** When this callback is available and authorized, use it to provision the requested provider, log only the non-secret setup result, restart the application, and test a minimal real provider request. Do not send the user to support solely because a managed AI provider is absent from searchIntegrations.
+
+The user specifically requests Haiku **5.5**, not a silent substitution with Haiku 4.5. A successful provider credential test on 4.5 does not establish 5.5 availability.
+
+**Why:** The user explicitly corrected the requested Haiku version.
+
+**How to apply:** Confirm the exact model identifier and availability before changing the active app model. The managed Anthropic gateway rejected GET /v1/models with HTTP 405, so use current provider/platform documentation rather than assuming it exposes the standard model-list endpoint.
+
 The user wants the app's AI usage paid only from subscription credits, not a personal provider API key or uncontrolled extra charges.
 
 **Why:** The user explicitly requested investigating how to run Luna while spending only subscription credits.
