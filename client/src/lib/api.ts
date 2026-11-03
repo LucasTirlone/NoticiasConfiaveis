@@ -13,6 +13,7 @@ export interface RefreshProgress {
 export interface NewsPage {
   items: NewsItem[];
   nextCursor: string | null;
+  total: number;
 }
 
 export const api = {

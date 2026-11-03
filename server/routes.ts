@@ -189,7 +189,10 @@ export async function registerRoutes(
     try {
       const tags = req.query.tags ? String(req.query.tags).split(",").filter(Boolean) : undefined;
       // One extra row determines continuation, without imposing a total feed cap.
-      const rows = await storage.getNewsFeedPage(cursor, limit + 1, tags);
+      const [rows, total] = await Promise.all([
+        storage.getNewsFeedPage(cursor, limit + 1, tags),
+        storage.countNewsFeed(cursor, tags),
+      ]);
       const page = rows.slice(0, limit);
       const last = page.at(-1);
       const nextCursor = rows.length > limit && last
@@ -198,7 +201,7 @@ export async function registerRoutes(
             before: { timestamp: last.timestamp.toISOString(), id: last.id },
           })
         : null;
-      res.json({ items: await enrichNewsItems(page), nextCursor });
+      res.json({ items: await enrichNewsItems(page), nextCursor, total });
     } catch (error) {
       console.error("Failed to read news feed:", error);
       res.status(500).json({ error: "Não foi possível carregar as notícias" });

@@ -13,6 +13,7 @@ export default function Feed() {
     isLoading, 
     isLoadingMore,
     hasMore,
+    totalNews,
     feedError,
     loadNextPage,
     retryFeed,
@@ -98,7 +99,7 @@ export default function Feed() {
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   {feed.length > 0 
-                    ? `${feed.length} notícias carregadas · últimos 7 dias`
+                    ? `${totalNews} notícias disponíveis nos últimos 7 dias · ${feed.length} carregadas`
                     : "Notícias dos últimos 7 dias"
                   }
                 </p>

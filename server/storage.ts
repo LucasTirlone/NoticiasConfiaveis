@@ -36,6 +36,7 @@ export interface IStorage {
   // News Items
   getAllNewsItems(limit?: number): Promise<NewsItem[]>;
   getNewsFeedPage(cursor: FeedCursor, limit: number, tags?: string[]): Promise<NewsItem[]>;
+  countNewsFeed(cursor: FeedCursor, tags?: string[]): Promise<number>;
   getNewsItem(id: string): Promise<NewsItem | undefined>;
   createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
   getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
@@ -151,6 +152,18 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(newsItems.timestamp), desc(newsItems.id))
       .limit(limit);
+  }
+
+  async countNewsFeed(cursor: FeedCursor, tags?: string[]): Promise<number> {
+    const conditions = [
+      sql`cardinality(${newsItems.tags}) > 0`,
+      gte(newsItems.timestamp, new Date(cursor.since)),
+      lte(newsItems.timestamp, new Date(cursor.until)),
+    ];
+    if (tags?.length) conditions.push(arrayOverlaps(newsItems.tags, tags));
+    const [result] = await db.select({ total: sql<number>`count(*)::int` })
+      .from(newsItems).where(and(...conditions));
+    return result.total;
   }
 
   async getNewsItem(id: string): Promise<NewsItem | undefined> {

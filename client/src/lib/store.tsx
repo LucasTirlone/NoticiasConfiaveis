@@ -51,6 +51,7 @@ interface StoreContextType {
   isLoading: boolean;
   isLoadingMore: boolean;
   hasMore: boolean;
+  totalNews: number;
   feedError: string | null;
   loadNextPage: () => Promise<void>;
   refreshProgress: RefreshProgress;
@@ -78,6 +79,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [totalNews, setTotalNews] = useState(0);
+  const feedRef = useRef(feed);
+  feedRef.current = feed;
   const [feedError, setFeedError] = useState<string | null>(null);
   const preferencesRef = useRef(preferences);
   preferencesRef.current = preferences;
@@ -112,18 +116,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     firstRequestRef.current = controller;
     firstLoadingRef.current = true;
     moreLoadingRef.current = false;
-    cursorRef.current = null;
-    setFeed([]);
-    setHasMore(false);
     setFeedError(null);
     setIsLoadingMore(false);
-    if (showLoading) setIsLoading(true);
+    // Returning to the tab must not discard pages the reader already loaded.
+    const targetCount = showLoading ? 24 : Math.max(24, feedRef.current.length);
+    if (showLoading) {
+      cursorRef.current = null;
+      setFeed([]);
+      setHasMore(false);
+      setTotalNews(0);
+      setIsLoading(true);
+    }
     try {
-      const page = await api.getNewsPage({ limit: 24, tags: tags.length ? tags : undefined, signal: controller.signal });
+      let page = await api.getNewsPage({ limit: 24, tags: tags.length ? tags : undefined, signal: controller.signal });
+      const items = [...page.items] as unknown as NewsItem[];
+      const total = page.total;
+      while (items.length < targetCount && page.nextCursor !== null) {
+        if (generation !== generationRef.current || controller.signal.aborted) return;
+        page = await api.getNewsPage({
+          limit: 24,
+          tags: tags.length ? tags : undefined,
+          cursor: page.nextCursor,
+          signal: controller.signal,
+        });
+        items.push(...page.items as unknown as NewsItem[]);
+      }
       if (generation !== generationRef.current || controller.signal.aborted) return;
-      const items = page.items as unknown as NewsItem[];
       const unique = Array.from(new Map(items.map(item => [item.id, item])).values());
       setFeed(displayItems(unique));
+      setTotalNews(total);
       cursorRef.current = page.nextCursor;
       setHasMore(page.nextCursor !== null);
     } catch (error) {
@@ -167,6 +188,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       cursorRef.current = page.nextCursor;
       setHasMore(page.nextCursor !== null);
+      setTotalNews(page.total);
     } catch (error) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
       console.error("Failed to load next news page:", error);
@@ -267,7 +289,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const readLatestNews = async (initial = false) => {
       if (!active || firstLoadingRef.current) return;
       if (initial) setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
-      await loadFirstPage(tags);
+      await loadFirstPage(tags, initial);
       if (!active) return;
       if (initial) {
         setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
@@ -390,6 +412,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isLoading,
       isLoadingMore,
       hasMore,
+      totalNews,
       feedError,
       loadNextPage,
       refreshProgress,
