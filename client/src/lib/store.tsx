@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from "react";
 import type { Source as DBSource, UserPreferences as DBUserPreferences } from "@shared/schema";
 import { CATEGORIES, getAllThemeIds } from "@shared/categories";
 import { api, type RefreshProgress } from "./api";
@@ -47,18 +47,16 @@ interface StoreContextType {
   clearAllThemesInCategory: (categoryId: string) => void;
   markOnboardingComplete: () => void;
   refreshFeed: () => Promise<void>;
-  loadNews: (themes?: string[]) => Promise<void>;
+  retryFeed: () => Promise<void>;
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  feedError: string | null;
+  loadNextPage: () => Promise<void>;
   refreshProgress: RefreshProgress;
-  currentPage: number;
-  setCurrentPage: (page: number) => void;
-  totalPages: number;
-  paginatedFeed: NewsItem[];
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
-
-const ITEMS_PER_PAGE = 3;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -78,7 +76,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [feed, setFeed] = useState<NewsItem[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
+  const tagsRef = useRef(preferences.selectedTags);
+  tagsRef.current = preferences.selectedTags;
+  const cursorRef = useRef<string | null>(null);
+  const generationRef = useRef(0);
+  const firstRequestRef = useRef<AbortController | null>(null);
+  const moreRequestRef = useRef<AbortController | null>(null);
+  const firstLoadingRef = useRef(false);
+  const moreLoadingRef = useRef(false);
   const [refreshProgress, setRefreshProgress] = useState<RefreshProgress>({
     current: 0,
     total: 0,
@@ -86,31 +96,93 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     message: ""
   });
 
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  
-  const filteredFeed = feed.filter(item => {
-    const itemDate = new Date(item.timestamp);
-    const matchesTags = preferences.selectedTags.length === 0 || 
-                       item.tags.some(tag => preferences.selectedTags.includes(tag));
-    return itemDate >= sevenDaysAgo && matchesTags;
-  });
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [preferences.selectedTags]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredFeed.length / ITEMS_PER_PAGE));
-  const paginatedFeed = filteredFeed.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  ).map(item => ({
+  const displayItems = (items: NewsItem[]) => items.map(item => ({
     ...item,
-    summary: item.aiSummary && item.aiSummary.length > 400 
-      ? item.aiSummary.substring(0, 400).trim() + "..." 
-      : (item.aiSummary || item.summary)
+    summary: item.aiSummary && item.aiSummary.length > 400
+      ? item.aiSummary.substring(0, 400).trim() + "..."
+      : (item.aiSummary || item.summary),
   }));
+
+  const loadFirstPage = async (tags: string[], showLoading = true, force = false) => {
+    if (firstLoadingRef.current && !force) return;
+    firstRequestRef.current?.abort();
+    moreRequestRef.current?.abort();
+    const generation = ++generationRef.current;
+    const controller = new AbortController();
+    firstRequestRef.current = controller;
+    firstLoadingRef.current = true;
+    moreLoadingRef.current = false;
+    cursorRef.current = null;
+    setFeed([]);
+    setHasMore(false);
+    setFeedError(null);
+    setIsLoadingMore(false);
+    if (showLoading) setIsLoading(true);
+    try {
+      const page = await api.getNewsPage({ limit: 24, tags: tags.length ? tags : undefined, signal: controller.signal });
+      if (generation !== generationRef.current || controller.signal.aborted) return;
+      const items = page.items as unknown as NewsItem[];
+      const unique = Array.from(new Map(items.map(item => [item.id, item])).values());
+      setFeed(displayItems(unique));
+      cursorRef.current = page.nextCursor;
+      setHasMore(page.nextCursor !== null);
+    } catch (error) {
+      if (generation !== generationRef.current || controller.signal.aborted) return;
+      console.error("Failed to load news:", error);
+      setFeedError("Não foi possível carregar as notícias.");
+    } finally {
+      if (generation === generationRef.current) {
+        firstLoadingRef.current = false;
+        firstRequestRef.current = null;
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const loadNextPage = async () => {
+    const cursor = cursorRef.current;
+    if (cursor === null || moreLoadingRef.current || firstLoadingRef.current) return;
+    const generation = generationRef.current;
+    const controller = new AbortController();
+    moreRequestRef.current?.abort();
+    moreRequestRef.current = controller;
+    moreLoadingRef.current = true;
+    setIsLoadingMore(true);
+    setFeedError(null);
+    try {
+      const page = await api.getNewsPage({
+        limit: 24,
+        tags: tagsRef.current.length ? tagsRef.current : undefined,
+        cursor,
+        signal: controller.signal,
+      });
+      if (generation !== generationRef.current || controller.signal.aborted) return;
+      const items = page.items as unknown as NewsItem[];
+      setFeed(previous => {
+        const seen = new Set(previous.map(item => item.id));
+        const additions = Array.from(new Map(
+          items.filter(item => !seen.has(item.id)).map(item => [item.id, item]),
+        ).values());
+        return [...previous, ...displayItems(additions)];
+      });
+      cursorRef.current = page.nextCursor;
+      setHasMore(page.nextCursor !== null);
+    } catch (error) {
+      if (generation !== generationRef.current || controller.signal.aborted) return;
+      console.error("Failed to load next news page:", error);
+      setFeedError("Não foi possível carregar mais notícias.");
+    } finally {
+      if (generation === generationRef.current) {
+        moreLoadingRef.current = false;
+        moreRequestRef.current = null;
+        setIsLoadingMore(false);
+      }
+    }
+  };
+
+  const retryFeed = async () => {
+    await loadFirstPage(tagsRef.current, true, true);
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -140,20 +212,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
     loadPrefs();
   }, [user?.id]);
-
-  const loadNews = async (themes?: string[]) => {
-    setIsLoading(true);
-    try {
-      const tagsToUse = themes || preferences.selectedTags;
-      const newsData = await api.getNews(tagsToUse.length > 0 ? tagsToUse : undefined);
-      setFeed(newsData as NewsItem[]);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("Failed to load news:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const refreshFeed = async () => {
     setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Iniciando atualização...", newsCount: 0 });
@@ -187,9 +245,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRefreshProgress(finalProgress);
       
       // Reload news
-      const newsData = await api.getNews(preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined);
-      setFeed(newsData as NewsItem[]);
-      setCurrentPage(1);
+      await loadFirstPage(tagsRef.current, true, true);
     } catch (error) {
       console.error("Failed to refresh:", error);
       setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao atualizar", newsCount: 0 });
@@ -203,39 +259,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const selectedTagsKey = JSON.stringify(preferences.selectedTags);
   useEffect(() => {
-    const controller = new AbortController();
-    let inFlight = false;
+    let active = true;
     let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    const tags: string[] = JSON.parse(selectedTagsKey);
     const readLatestNews = async (initial = false) => {
-      if (inFlight || controller.signal.aborted) return;
-      inFlight = true;
+      if (!active || firstLoadingRef.current) return;
+      if (initial) setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
+      await loadFirstPage(tags);
+      if (!active) return;
       if (initial) {
-        setIsLoading(true);
-        setRefreshProgress({ current: 0, total: 1, status: "loading", message: "Carregando notícias..." });
-      }
-
-      try {
-        const tagsParam = preferences.selectedTags.length > 0 ? preferences.selectedTags : undefined;
-        const newsData = await api.getNews(tagsParam, controller.signal);
-        if (controller.signal.aborted) return;
-        setFeed(newsData as NewsItem[]);
-        setCurrentPage(1);
-        if (initial) {
-          setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
-        }
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error("Failed to load news:", error);
-        setRefreshProgress({ current: 0, total: 0, status: "error", message: "Erro ao carregar notícias" });
-      } finally {
-        inFlight = false;
-        if (initial && !controller.signal.aborted) {
-          setIsLoading(false);
-          resetTimer = setTimeout(() => {
-            setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
-          }, 1500);
-        }
+        setRefreshProgress({ current: 1, total: 1, status: "complete", message: "Carregado!" });
+        resetTimer = setTimeout(() => {
+          setRefreshProgress({ current: 0, total: 0, status: "idle", message: "" });
+        }, 1500);
       }
     };
 
@@ -244,20 +282,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState === "visible") void readLatestNews();
     };
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) onVisible();
+      if (event.persisted) void readLatestNews();
     };
     void readLatestNews(true);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     window.addEventListener("pageshow", onPageShow);
     return () => {
-      controller.abort();
+      active = false;
+      generationRef.current += 1;
+      firstRequestRef.current?.abort();
+      moreRequestRef.current?.abort();
+      firstRequestRef.current = null;
+      moreRequestRef.current = null;
+      firstLoadingRef.current = false;
+      moreLoadingRef.current = false;
       if (resetTimer) clearTimeout(resetTimer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [preferences.selectedTags, user?.id]);
+  }, [selectedTagsKey, user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -268,7 +313,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   const updatePreferences = async (newPrefs: Partial<UserPreferences>) => {
-    const updated = { ...preferences, ...newPrefs };
+    const updated = { ...preferencesRef.current, ...newPrefs };
+    preferencesRef.current = updated;
     setPreferences(updated);
     
     try {
@@ -328,7 +374,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider value={{ 
       preferences, 
-      feed: filteredFeed, 
+      feed,
       sources, 
       updatePreferences, 
       toggleTheme, 
@@ -340,13 +386,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       clearAllThemesInCategory,
       markOnboardingComplete,
       refreshFeed,
-      loadNews,
+      retryFeed,
       isLoading,
+      isLoadingMore,
+      hasMore,
+      feedError,
+      loadNextPage,
       refreshProgress,
-      currentPage,
-      setCurrentPage,
-      totalPages,
-      paginatedFeed
     }}>
       {children}
     </StoreContext.Provider>

@@ -2,15 +2,20 @@ import { useStore, CATEGORIES } from "@/lib/store";
 import { NewsCard } from "@/components/NewsCard";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { ShieldCheck, RefreshCw, CheckCheck, X, Filter, AlertTriangle, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 
 export default function Feed() {
   const { 
-    paginatedFeed, 
+    feed,
     isLoading, 
+    isLoadingMore,
+    hasMore,
+    feedError,
+    loadNextPage,
+    retryFeed,
     preferences, 
     refreshFeed, 
     refreshProgress, 
@@ -19,15 +24,24 @@ export default function Feed() {
     clearAllThemes,
     selectCategory,
     deselectCategory,
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    feed
   } = useStore();
   
   const { isAdmin } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadNextPageRef = useRef(loadNextPage);
+  loadNextPageRef.current = loadNextPage;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined" || !hasMore || isLoading || isLoadingMore || feedError) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) void loadNextPageRef.current();
+    }, { rootMargin: "320px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, isLoadingMore, feedError, feed.length]);
 
   const toggleCategoryExpand = (categoryId: string) => {
     setExpandedCategories(prev => 
@@ -52,14 +66,16 @@ export default function Feed() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshFeed();
-    setIsRefreshing(false);
+    try {
+      await refreshFeed();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const showLoadingBar = refreshProgress.status !== "idle" || isLoading;
   const allSelected = preferences.selectedTags.length === CATEGORIES.flatMap(c => c.themes).length;
   const noneSelected = preferences.selectedTags.length === 0;
-
   return (
     <div className="space-y-6">
       {showLoadingBar && <LoadingProgress />}
@@ -82,8 +98,8 @@ export default function Feed() {
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   {feed.length > 0 
-                    ? `${feed.length} alertas nos últimos 7 dias`
-                    : "Selecione filtros para ver notícias"
+                    ? `${feed.length} notícias carregadas · últimos 7 dias`
+                    : "Notícias dos últimos 7 dias"
                   }
                 </p>
               </div>
@@ -207,26 +223,7 @@ export default function Feed() {
           </div>
         </section>
 
-        {noneSelected ? (
-          <motion.div 
-            className="text-center py-16 bg-muted/30 rounded-2xl border border-dashed"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-xl font-medium text-muted-foreground mb-2">
-              Nenhum filtro selecionado
-            </p>
-            <p className="text-muted-foreground mb-6">
-              Selecione pelo menos uma categoria ou tema para ver as notícias.
-            </p>
-            <Button onClick={selectAllThemes} data-testid="select-all-empty-button">
-              <CheckCheck className="w-4 h-4 mr-2" />
-              Selecionar todos os temas
-            </Button>
-          </motion.div>
-        ) : isLoading && refreshProgress.status === "idle" ? (
+        {isLoading && feed.length === 0 ? (
           <div className="space-y-4 animate-pulse">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-48 bg-muted rounded-2xl" />
@@ -235,18 +232,18 @@ export default function Feed() {
         ) : (
           <>
             <div className="grid gap-4">
-              {paginatedFeed.length > 0 ? (
-                paginatedFeed.map((item, idx) => (
+              {feed.length > 0 ? (
+                feed.map((item, idx) => (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
+                    transition={{ delay: Math.min(idx % 8, 5) * 0.035 }}
                   >
                     <NewsCard item={item} />
                   </motion.div>
                 ))
-              ) : (
+              ) : !feedError && (
                 <div className="text-center py-12 text-muted-foreground">
                   <p className="text-lg">
                     Nenhuma notícia encontrada para os temas selecionados nos últimos 7 dias.
@@ -265,53 +262,38 @@ export default function Feed() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 py-4">
+            {feedError && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center" role="alert">
+                <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" aria-hidden />
+                <p className="font-medium">{feedError}</p>
                 <Button
                   variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  className="mt-3"
+                  onClick={() => feed.length ? void loadNextPage() : void retryFeed()}
                 >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum: number;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="w-10"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4"
-                >
-                  Próxima
-                  <ChevronRight className="w-4 h-4 ml-1" />
+                  Tentar novamente
                 </Button>
               </div>
+            )}
+
+            <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+            {isLoadingMore && (
+              <div className="flex justify-center py-5" role="status" aria-live="polite">
+                <span className="animate-pulse text-sm text-muted-foreground">Carregando mais notícias…</span>
+              </div>
+            )}
+            {hasMore && !feedError && (
+              <div className="flex justify-center py-3">
+                <Button variant="outline" onClick={() => void loadNextPage()} disabled={isLoadingMore} aria-label="Carregar mais notícias">
+                  {isLoadingMore ? "Carregando…" : "Carregar mais"}
+                  {!isLoadingMore && <ChevronRight className="ml-1 h-4 w-4" aria-hidden />}
+                </Button>
+              </div>
+            )}
+            {!hasMore && feed.length > 0 && !isLoading && (
+              <p className="py-5 text-center text-sm text-muted-foreground" aria-live="polite">
+                Você chegou ao fim das notícias dos últimos 7 dias.
+              </p>
             )}
           </>
         )}

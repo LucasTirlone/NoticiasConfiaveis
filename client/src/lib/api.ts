@@ -10,8 +10,29 @@ export interface RefreshProgress {
   newsCount?: number;
 }
 
+export interface NewsPage {
+  items: NewsItem[];
+  nextCursor: string | null;
+}
+
 export const api = {
   // News
+  async getNewsPage(
+    options: { limit?: number; tags?: string[]; cursor?: string; signal?: AbortSignal } = {},
+  ): Promise<NewsPage> {
+    const params = new URLSearchParams();
+    params.set("limit", String(options.limit ?? 24));
+    if (options.tags?.length) params.set("tags", options.tags.join(","));
+    if (options.cursor !== undefined) params.set("cursor", options.cursor);
+    const res = await fetch(`${API_BASE}/news-feed?${params.toString()}`, {
+      credentials: "include",
+      cache: "no-store",
+      signal: options.signal,
+    });
+    if (!res.ok) throw new Error("Failed to fetch news page");
+    return res.json();
+  },
+
   async getNews(tags?: string[], signal?: AbortSignal): Promise<NewsItem[]> {
     let params = "";
     if (tags && tags.length > 0) {

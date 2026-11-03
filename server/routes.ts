@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSourceSchema, insertUserPreferencesSchema, loginUserSchema, registerUserSchema } from "@shared/schema";
 import { fetchAllRSS, fetchRSSFromSource } from "./services/rss-fetcher";
+import { readFeedCursor, encodeFeedCursor } from "./services/feed-pagination";
 import { z } from "zod";
 import { getOpenAIClient, NEWS_AI_MODEL } from "./services/openai-client";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -171,6 +172,39 @@ export async function registerRoutes(
   });
 
   // ===== NEWS ITEMS =====
+  app.get("/api/news-feed", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    let cursor;
+    const limit = req.query.limit === undefined ? 24 : Number(req.query.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      res.status(400).json({ error: "Limite inválido" });
+      return;
+    }
+    try {
+      cursor = readFeedCursor(req.query.cursor);
+    } catch {
+      res.status(400).json({ error: "Cursor inválido" });
+      return;
+    }
+    try {
+      const tags = req.query.tags ? String(req.query.tags).split(",").filter(Boolean) : undefined;
+      // One extra row determines continuation, without imposing a total feed cap.
+      const rows = await storage.getNewsFeedPage(cursor, limit + 1, tags);
+      const page = rows.slice(0, limit);
+      const last = page.at(-1);
+      const nextCursor = rows.length > limit && last
+        ? encodeFeedCursor({
+            ...cursor,
+            before: { timestamp: last.timestamp.toISOString(), id: last.id },
+          })
+        : null;
+      res.json({ items: await enrichNewsItems(page), nextCursor });
+    } catch (error) {
+      console.error("Failed to read news feed:", error);
+      res.status(500).json({ error: "Não foi possível carregar as notícias" });
+    }
+  });
+
   app.get("/api/news", async (req, res) => {
     res.set("Cache-Control", "no-store");
     try {

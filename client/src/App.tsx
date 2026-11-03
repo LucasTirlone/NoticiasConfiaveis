@@ -13,12 +13,42 @@ import Privacy from "@/pages/privacy";
 import Terms from "@/pages/terms";
 import NotFound from "@/pages/not-found";
 import { Toaster } from "@/components/ui/toaster";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 function AppContent() {
   const { preferences } = useStore();
   const { user, isLoading } = useAuth();
   const [location, setLocation] = useLocation();
+  const readingDomOriginalRef = useRef<{
+    fontSize: string;
+    hadContrastClass: boolean;
+    contrastAttribute: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    readingDomOriginalRef.current = {
+      fontSize: root.style.fontSize,
+      hadContrastClass: root.classList.contains("high-contrast"),
+      contrastAttribute: root.getAttribute("data-reading-contrast"),
+    };
+    return () => {
+      const original = readingDomOriginalRef.current;
+      if (!original) return;
+      root.style.fontSize = original.fontSize;
+      root.classList.toggle("high-contrast", original.hadContrastClass);
+      if (original.contrastAttribute === null) root.removeAttribute("data-reading-contrast");
+      else root.setAttribute("data-reading-contrast", original.contrastAttribute);
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const fontSizes = { normal: 18, large: 21, extra_large: 24 };
+    root.style.fontSize = `${fontSizes[preferences.textSize] ?? fontSizes.normal}px`;
+    root.classList.toggle("high-contrast", preferences.highContrast);
+    root.setAttribute("data-reading-contrast", preferences.highContrast ? "high" : "standard");
+  }, [preferences.textSize, preferences.highContrast]);
 
   const publicRoutes = ["/login", "/register", "/privacy", "/terms"];
   const isPublicRoute = publicRoutes.includes(location);

@@ -90,6 +90,10 @@
   --radius: 0.75rem;
 }
 
+html {
+  font-size: 18px;
+}
+
 .dark {
   /* Dark Mode - Adjusted for high contrast comfort */
   --background: 222 47% 11%;
@@ -127,8 +131,7 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    /* Increase base font size for 50+ audience */
-    font-size: 18px; 
+    font-size: 1rem;
     line-height: 1.6;
   }
   
@@ -151,7 +154,39 @@
   font-size: 1.25rem; /* 20px */
 }
 
-.high-contrast {
-  --foreground: 0 0% 0%;
-  --primary: 220 100% 40%;
+html.high-contrast {
+  --background: 48 42% 98%;
+  --foreground: 222 40% 6%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 40% 6%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 40% 6%;
+  --primary: 221 90% 28%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 45 24% 88%;
+  --secondary-foreground: 222 40% 6%;
+  --muted: 45 20% 91%;
+  --muted-foreground: 220 28% 18%;
+  --accent: 45 24% 86%;
+  --accent-foreground: 222 40% 6%;
+  --destructive: 0 74% 35%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 24% 54%;
+  --input: 220 24% 54%;
+  --ring: 221 90% 28%;
+}
+
+html.high-contrast body {
+  color-scheme: light;
+}
+
+html.high-contrast button,
+html.high-contrast a,
+html.high-contrast [role="switch"] {
+  text-decoration-thickness: 2px;
+}
+
+html.high-contrast :focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 3px;
 }

@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReactNode } from "react";
-import { api } from "@/lib/api";
 import { toast } from "sonner";
 import generatedIcon from "@assets/generated_images/app_icon_showing_a_shield_with_a_checkmark,_symbolizing_trusted_news.png";
 
@@ -29,7 +28,6 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const handleRefreshFeed = async () => {
     try {
-      await api.refreshFeed();
       await refreshFeed();
       toast.success("Feed atualizado com sucesso!");
     } catch {

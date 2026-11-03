@@ -14,7 +14,8 @@ import {
   systemLocks
 } from "@shared/schema";
 import { db } from "../db";
-import { eq, desc, or, and, isNotNull, ne, sql, arrayOverlaps } from "drizzle-orm";
+import { eq, desc, or, and, isNotNull, ne, sql, arrayOverlaps, gte, lte, lt } from "drizzle-orm";
+import type { FeedCursor } from "./services/feed-pagination";
 
 export interface IStorage {
   // Users / Auth
@@ -34,6 +35,7 @@ export interface IStorage {
   
   // News Items
   getAllNewsItems(limit?: number): Promise<NewsItem[]>;
+  getNewsFeedPage(cursor: FeedCursor, limit: number, tags?: string[]): Promise<NewsItem[]>;
   getNewsItem(id: string): Promise<NewsItem | undefined>;
   createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
   getNewsItemsByTags(tags: string[], limit?: number): Promise<NewsItem[]>;
@@ -128,6 +130,26 @@ export class DatabaseStorage implements IStorage {
       .from(newsItems)
       .where(sql`cardinality(${newsItems.tags}) > 0`)
       .orderBy(desc(newsItems.timestamp))
+      .limit(limit);
+  }
+
+  async getNewsFeedPage(cursor: FeedCursor, limit: number, tags?: string[]): Promise<NewsItem[]> {
+    const conditions = [
+      sql`cardinality(${newsItems.tags}) > 0`,
+      gte(newsItems.timestamp, new Date(cursor.since)),
+      lte(newsItems.timestamp, new Date(cursor.until)),
+    ];
+    if (tags?.length) conditions.push(arrayOverlaps(newsItems.tags, tags));
+    if (cursor.before) {
+      const before = new Date(cursor.before.timestamp);
+      conditions.push(or(
+        lt(newsItems.timestamp, before),
+        and(eq(newsItems.timestamp, before), lt(newsItems.id, cursor.before.id)),
+      )!);
+    }
+    return db.select().from(newsItems)
+      .where(and(...conditions))
+      .orderBy(desc(newsItems.timestamp), desc(newsItems.id))
       .limit(limit);
   }
 
