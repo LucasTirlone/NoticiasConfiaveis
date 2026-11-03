@@ -44,7 +44,7 @@ function AppContent() {
 
   useEffect(() => {
     const root = document.documentElement;
-    const fontSizes = { normal: 18, large: 21, extra_large: 24 };
+    const fontSizes = { normal: 16, large: 21, extra_large: 24 };
     root.style.fontSize = `${fontSizes[preferences.textSize] ?? fontSizes.normal}px`;
     root.classList.toggle("high-contrast", preferences.highContrast);
     root.setAttribute("data-reading-contrast", preferences.highContrast ? "high" : "standard");

@@ -166,7 +166,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 container mx-auto px-4 py-5 max-w-3xl pb-28" role="main">
+      <main className="flex-1 container mx-auto px-4 py-5 max-w-[864px] pb-28" role="main">
         {children}
       </main>
 

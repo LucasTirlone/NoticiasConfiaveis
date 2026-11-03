@@ -41,7 +41,7 @@ export function NewsCard({ item }: { item: NewsItem }) {
           ${alertLevelBg[level] ?? alertLevelBg.normal}
         `}
       >
-        <div className="p-4 space-y-3">
+        <div className="p-3.5 space-y-2.5">
           {/* Top Row: Badges + Time */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap min-w-0">

@@ -50,7 +50,7 @@ export function TrustBadge({ level, className, showLabel = true }: TrustBadgePro
   return (
     <div 
       className={cn(
-        "flex items-center gap-1.5 px-3 py-1 rounded-full border w-fit font-bold shadow-sm",
+        "flex items-center gap-1 px-2.5 py-1 rounded-full border w-fit font-bold shadow-sm",
         current.bg,
         current.border,
         current.color,
@@ -58,8 +58,8 @@ export function TrustBadge({ level, className, showLabel = true }: TrustBadgePro
       )}
       title={current.desc}
     >
-      <Icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} />
-      {showLabel && <span className="uppercase tracking-wide text-xs md:text-sm">{current.text}</span>}
+      <Icon className="w-4 h-4" strokeWidth={2.5} />
+      {showLabel && <span className="uppercase tracking-wide text-xs">{current.text}</span>}
     </div>
   );
 }
