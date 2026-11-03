@@ -1,6 +1,7 @@
 import { getOpenAIClient, NEWS_AI_MODEL } from "./openai-client";
 import {
   buildClassificationPrompt,
+  CLASSIFICATION_RESPONSE_SCHEMA,
   parseClassifiedSummary,
   type ClassifiedSummary,
 } from "./news-classification";
@@ -35,9 +36,19 @@ export async function generateAiSummary(
         role: "user",
         content: buildClassificationPrompt(title, content, isPortuguese),
       }],
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "news_summary_classification",
+          strict: true,
+          schema: CLASSIFICATION_RESPONSE_SCHEMA,
+        },
+      },
       max_completion_tokens: 1400,
-    });
+    }, { maxRetries: 0, timeout: 45_000 });
+    if (response.choices[0]?.finish_reason !== "stop") {
+      throw new Error("Resposta de classificação incompleta ou recusada.");
+    }
     const text = response.choices[0]?.message?.content || "";
     const result = parseClassifiedSummary(text, title, content);
     console.log(`[Classificação IA] modelo=${NEWS_AI_MODEL}, tokens: entrada=${response.usage?.prompt_tokens ?? "?"}, saída=${response.usage?.completion_tokens ?? "?"}`);

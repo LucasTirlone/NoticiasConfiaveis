@@ -2,13 +2,13 @@ import Parser from "rss-parser";
 import { storage } from "../storage";
 import { db } from "../../db";
 import { newsItems } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import type { InsertNewsItem } from "@shared/schema";
 import { findThemesByText } from "@shared/categories";
 import { generateAiSummary, withClassificationRetry } from "./ai-news-summary";
 import { getOpenAIClient, NEWS_AI_MODEL } from "./openai-client";
 
-const parser = new Parser();
+const parser = new Parser({ timeout: 20_000 });
 
 const SENTINELA_PROMPT = `# ROLE
 Você é o **Sentinela IA**, um Analista Sênior de Riscos Globais e Desastres para o aplicativo "Verifica". Sua função é atuar como um filtro de segurança rigoroso, analisando feeds de notícias em tempo real e selecionando apenas eventos de **ALTO IMPACTO**, **RISCO IMINENTE** ou **RELEVÂNCIA CIENTÍFICA**.
@@ -171,9 +171,9 @@ function calculateReliability(sourceType: "official" | "media" | "blog"): {
   }
 }
 
-export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: { count: number }) => void): Promise<void> {
+export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: { count: number }) => void): Promise<boolean> {
   const source = await storage.getSource(sourceId);
-  if (!source || !source.rssUrl) return;
+  if (!source || !source.rssUrl) return false;
 
   console.log(`\n--- Iniciando busca na fonte: ${source.name} ---`);
 
@@ -187,7 +187,9 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
     try {
       const response = await fetch(source.rssUrl, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; SentinelaIA/1.0)" },
+        signal: AbortSignal.timeout(20_000),
       });
+      if (!response.ok) throw new Error(`HTTP ${response.status} ao consultar RSS.`);
       const buffer = await response.arrayBuffer();
       const uint8 = new Uint8Array(buffer);
       // Peek at the first 300 bytes to detect encoding declaration in XML header
@@ -307,14 +309,46 @@ export async function fetchRSSFromSource(sourceId: string, onProgress?: (stats: 
 
     await storage.updateSourceLastFetched(sourceId);
     console.log(`--- Busca finalizada em ${source.name} ---\n`);
+    return true;
   } catch (error) {
     console.error(`!!! FALHA CRÍTICA NA FONTE: ${source.name} !!!`);
     console.error(`URL RSS: ${source.rssUrl}`);
     console.error(`Erro:`, error);
+    return false;
   }
 }
 
-export async function fetchAllRSS(): Promise<boolean> {
+// Retry only actual failures, not legitimate abstentions (which have aiSummary).
+// Bounded to recent rows and 30 stories per refresh to contain AI expenditure.
+export async function recoverRecentClassifications() {
+  const pending = await db.select().from(newsItems).where(and(
+    isNull(newsItems.aiSummary),
+    sql`cardinality(${newsItems.tags}) = 0`,
+    gte(newsItems.timestamp, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+  )).orderBy(desc(newsItems.timestamp)).limit(30);
+  const sources = await storage.getAllSources();
+  const sourceNames = new Map(sources.map(source => [source.id, source.name]));
+  const stats = { attempted: pending.length, recovered: 0, abstained: 0, failed: 0 };
+  for (const item of pending) {
+    const title = item.originalTitle || item.title;
+    const portuguese = isPortugueseSource(sourceNames.get(item.sourceIds[0]) || "");
+    const result = await withClassificationRetry(
+      () => generateAiSummary(title, item.fullContent, portuguese),
+    );
+    if (!result) { stats.failed++; continue; }
+    await db.update(newsItems).set({
+      aiSummary: result.summary,
+      title: portuguese ? title : result.translatedTitle,
+      tags: result.tags,
+    }).where(and(eq(newsItems.id, item.id), isNull(newsItems.aiSummary)));
+    if (result.tags.length) stats.recovered++;
+    else stats.abstained++;
+  }
+  console.log(`[Recuperação de classificação] ${JSON.stringify(stats)}`);
+  return stats;
+}
+
+export async function fetchAllRSS(onProgress?: (stats: { current: number; total: number; failedSources: number }) => void): Promise<boolean> {
   // Tentar adquirir o lock distribuído via PostgreSQL
   const lockAcquired = await storage.acquireRefreshLock();
   if (!lockAcquired) {
@@ -323,15 +357,27 @@ export async function fetchAllRSS(): Promise<boolean> {
   }
 
   try {
+    await recoverRecentClassifications();
     const allSources = await storage.getAllSources();
     const sourcesWithRSS = allSources.filter(s => s.rssUrl);
 
     // Buscar 5 fontes em paralelo para reduzir o tempo total de ~10min para ~2min
     const { default: pLimit } = await import("p-limit");
     const limit = pLimit(5);
+    let current = 0;
+    let failedSources = 0;
 
     await Promise.allSettled(
-      sourcesWithRSS.map(source => limit(() => fetchRSSFromSource(source.id)))
+      sourcesWithRSS.map(source => limit(async () => {
+        try {
+          if (!await fetchRSSFromSource(source.id)) failedSources++;
+        } catch {
+          failedSources++;
+        } finally {
+          current++;
+          onProgress?.({ current, total: sourcesWithRSS.length, failedSources });
+        }
+      }))
     );
     return true;
   } finally {

@@ -14,7 +14,7 @@ import {
   systemLocks
 } from "@shared/schema";
 import { db } from "../db";
-import { eq, desc, or, and, isNotNull, ne } from "drizzle-orm";
+import { eq, desc, or, and, isNotNull, ne, sql, arrayOverlaps } from "drizzle-orm";
 
 export interface IStorage {
   // Users / Auth
@@ -126,6 +126,7 @@ export class DatabaseStorage implements IStorage {
   async getAllNewsItems(limit: number = 200): Promise<NewsItem[]> {
     return await db.select()
       .from(newsItems)
+      .where(sql`cardinality(${newsItems.tags}) > 0`)
       .orderBy(desc(newsItems.timestamp))
       .limit(limit);
   }
@@ -141,16 +142,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNewsItemsByTags(tags: string[], limit: number = 50): Promise<NewsItem[]> {
-    const allItems = await db.select()
+    if (!tags.length) return [];
+    return await db.select()
       .from(newsItems)
+      .where(arrayOverlaps(newsItems.tags, tags))
       .orderBy(desc(newsItems.timestamp))
-      .limit(500);
-    
-    const filtered = allItems.filter(item => 
-      item.tags.some(tag => tags.includes(tag))
-    );
-    
-    return filtered.slice(0, limit);
+      .limit(limit);
   }
 
   async findNewsItemByOriginalTitleOrUrl(originalTitle: string, originalUrl: string): Promise<NewsItem | undefined> {

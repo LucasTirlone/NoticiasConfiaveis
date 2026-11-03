@@ -256,7 +256,7 @@ export async function registerRoutes(
 
   app.delete("/api/sources/:id", requireAdmin, async (req, res) => {
     try {
-      await storage.deleteSource(req.params.id);
+      await storage.deleteSource(String(req.params.id));
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete source" });
@@ -304,28 +304,38 @@ export async function registerRoutes(
     try {
       const allSources = await storage.getAllSources();
       const sourcesWithRSS = allSources.filter(s => s.rssUrl);
+      const previouslyVisible = new Set((await storage.getAllNewsItems(500)).map(item => item.id));
 
       refreshProgress = { current: 0, total: sourcesWithRSS.length, status: "loading", message: "Buscando notícias em paralelo...", newsCount: 0 };
 
-      const started = await fetchAllRSS();
+      let failedSources = 0;
+      const started = await fetchAllRSS(progress => {
+        failedSources = progress.failedSources;
+        refreshProgress = {
+          ...refreshProgress,
+          current: progress.current,
+          message: `Fontes consultadas: ${progress.current} de ${progress.total}.`,
+        };
+      });
 
       if (!started) {
         refreshProgress = { current: sourcesWithRSS.length, total: sourcesWithRSS.length, status: "complete", message: "Atualização já em andamento.", newsCount: 0 };
         return res.json({ success: true, message: "Refresh already in progress" });
       }
 
-      const allNews = await storage.getAllNewsItems();
+      const allNews = await storage.getAllNewsItems(500);
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const recentCount = allNews.filter(n => new Date(n.timestamp) >= sevenDaysAgo).length;
+      const newCount = allNews.filter(n => new Date(n.timestamp) >= sevenDaysAgo && !previouslyVisible.has(n.id)).length;
 
       refreshProgress = {
         current: sourcesWithRSS.length,
         total: sourcesWithRSS.length,
         status: "complete",
-        message: `Concluído! ${recentCount} notícias nos últimos 7 dias.`,
-        newsCount: recentCount
+        message: `Concluído! ${recentCount} notícias classificadas nos últimos 7 dias.${failedSources ? ` ${failedSources} fontes falharam; consulte as fontes cadastradas.` : ""}`,
+        newsCount: newCount
       };
-      res.json({ success: true, message: "Feed refreshed successfully", newsCount: recentCount });
+      res.json({ success: true, message: "Feed refreshed successfully", newsCount: newCount });
     } catch (error) {
       refreshProgress = { current: 0, total: 0, status: "error", message: "Erro ao atualizar", newsCount: 0 };
       res.status(500).json({ error: "Failed to refresh feed" });
@@ -334,7 +344,8 @@ export async function registerRoutes(
 
   app.post("/api/refresh-source/:id", requireAdmin, async (req, res) => {
     try {
-      await fetchRSSFromSource(req.params.id);
+      const success = await fetchRSSFromSource(String(req.params.id));
+      if (!success) return res.status(502).json({ error: "Não foi possível consultar esta fonte RSS." });
       res.json({ success: true, message: "Source refreshed successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to refresh source" });

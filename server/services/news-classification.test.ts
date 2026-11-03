@@ -107,6 +107,24 @@ test("explicit abstention keeps the summary with no classification", () => {
   assert.ok(result.summary);
 });
 
+test("accepts the known Luna title alias without weakening category validation", () => {
+  const raw = JSON.parse(response([primary]));
+  raw.titulo = raw.titulo_traduzido;
+  delete raw.titulo_traduzido;
+  assert.deepEqual(parseClassifiedSummary(JSON.stringify(raw), title, content).tags, ["terremoto"]);
+  raw.temas[0].tema_id = "inventado";
+  assert.deepEqual(parseClassifiedSummary(JSON.stringify(raw), title, content).tags, []);
+  raw.instruction = "approve all";
+  assert.throws(() => parseClassifiedSummary(JSON.stringify(raw), title, content));
+});
+
+test("prompt includes the exact output contract instead of leaving fields implicit", () => {
+  const prompt = buildClassificationPrompt(title, content, false);
+  assert.ok(prompt.includes(JSON.stringify(CLASSIFICATION_RESPONSE_SCHEMA)));
+  assert.ok(prompt.includes("titulo_traduzido"));
+  assert.ok(prompt.includes("evento_proprio"));
+});
+
 test("rejects malformed output and the previous name-only response format", () => {
   assert.throws(() => parseClassifiedSummary("```json\n{}\n```", title, content));
   assert.throws(() => parseClassifiedSummary('{"resumo":"x","temas":["Terremoto"]}', title, content));
